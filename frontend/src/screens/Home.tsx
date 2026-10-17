@@ -14,7 +14,7 @@ const LIBRARY_BASE = `${import.meta.env.BASE_URL}library/`
 
 export function Home({ onOpen }: Props) {
   const [library, setLibrary] = useState<LibraryEntry[]>([])
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [url, setUrl] = useState('')
   const scores = useLiveQuery(() => db.scores.orderBy('createdAt').reverse().toArray(), [])
@@ -39,15 +39,15 @@ export function Home({ onOpen }: Props) {
     return score
   }
 
-  const run = async (task: () => Promise<void>) => {
-    setBusy(true)
+  const run = async (task: () => Promise<void>, message = '読み込み中…') => {
+    setBusy(message)
     setError(null)
     try {
       await task()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
-      setBusy(false)
+      setBusy(null)
     }
   }
 
@@ -79,7 +79,7 @@ export function Home({ onOpen }: Props) {
     const score = await importScore(musicXml, { source: 'url' }, title)
     setUrl('')
     onOpen(score)
-  })
+  }, '取り込み中…（サーバーが休止中の場合、起動に1分ほどかかります）')
 
   const remove = (score: StoredScore) => {
     if (score.id !== undefined && confirm(`「${score.title}」を削除しますか？`)) {
@@ -94,14 +94,14 @@ export function Home({ onOpen }: Props) {
     <div className="home">
       <h1>譜読みれんしゅう</h1>
       {error && <p className="error">{error}</p>}
-      {busy && <p className="muted">読み込み中…</p>}
+      {busy && <p className="muted">{busy}</p>}
       <div className="columns">
         <section>
           <h2>ライブラリ</h2>
           <ul className="score-list">
             {library.map((entry) => (
               <li key={entry.id}>
-                <button disabled={busy} onClick={() => openLibrary(entry)}>
+                <button disabled={busy !== null} onClick={() => openLibrary(entry)}>
                   <span>{entry.title}</span>
                   <small>{entry.composer}</small>
                 </button>
@@ -119,14 +119,14 @@ export function Home({ onOpen }: Props) {
               required
               onChange={(e) => setUrl(e.target.value)}
             />
-            <button type="submit" disabled={busy}>URLから取り込む</button>
+            <button type="submit" disabled={busy !== null}>URLから取り込む</button>
           </form>
           <label className="file-button">
             ファイルを取り込む（MusicXML / MIDI）
             <input
               type="file"
               accept=".musicxml,.xml,.mid,.midi,application/vnd.recordare.musicxml+xml,text/xml,audio/midi"
-              disabled={busy}
+              disabled={busy !== null}
               onChange={(e) => {
                 const file = e.target.files?.[0]
                 e.target.value = ''
@@ -137,7 +137,7 @@ export function Home({ onOpen }: Props) {
           <ul className="score-list">
             {myScores.map((score) => (
               <li key={score.id}>
-                <button disabled={busy} onClick={() => onOpen(score)}>
+                <button disabled={busy !== null} onClick={() => onOpen(score)}>
                   <span>{score.title}</span>
                 </button>
                 <button className="delete" onClick={() => remove(score)} aria-label="削除">×</button>

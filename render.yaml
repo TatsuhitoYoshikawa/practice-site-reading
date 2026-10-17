@@ -1,0 +1,35 @@
+# Render Blueprint。GitHub 連携してデプロイする場合に使う（手動で作る場合は docs/DEPLOY.md を参照）
+services:
+  # Rails API（URL 取り込みの中継）
+  - type: web
+    name: practice-site-reading-api
+    runtime: ruby
+    plan: free
+    rootDir: backend
+    buildCommand: bundle install
+    startCommand: bin/rails db:prepare && bundle exec puma -C config/puma.rb
+    healthCheckPath: /up
+    envVars:
+      - key: RAILS_ENV
+        value: production
+      - key: BUNDLE_WITHOUT
+        value: development:test
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      # フロントエンドの URL（例: https://practice-site-reading.onrender.com）
+      - key: FRONTEND_ORIGIN
+        sync: false
+
+  # フロントエンド（静的サイト）
+  - type: web
+    name: practice-site-reading
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Rails API の URL（例: https://practice-site-reading-api.onrender.com）
+      - key: VITE_API_BASE_URL
+        sync: false

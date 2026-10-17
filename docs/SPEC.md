@@ -121,11 +121,12 @@ URL指定の楽譜ファイル ───────────┼──> Music
 | サービス | 種類 | プラン |
 |---|---|---|
 | frontend | Static Site | 無料 |
-| backend（Rails + Audiveris） | Web Service（Docker） | 有料（Audiveris のためメモリ2GB程度を想定） |
+| backend（Rails） | Web Service（Ruby） | 無料。OMR 導入時に Docker・有料プラン（メモリ2GB程度）へ移行 |
 
 - 無料の Web Service は 512MB・15分無通信でスリープするため、OMR 用途には向かない
 - OMR ジョブは Rails プロセス内で実行し（Solid Queue を Puma 内で起動）、Background Worker は使わない
 - 練習機能はフロントエンドだけで完結するため、バックエンド停止中も練習はできる
+- 手順は `docs/DEPLOY.md`、Blueprint は `render.yaml`
 
 ## 9. 実装の進め方
 1. 練習画面（楽譜表示・鍵盤・判定・伴奏）＋ライブラリ＋ MusicXML ファイル取り込み ← 実装済み
