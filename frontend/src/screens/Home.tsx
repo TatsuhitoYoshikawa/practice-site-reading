@@ -4,6 +4,7 @@ import { fetchScoreFromUrl } from '../lib/api'
 import { db } from '../lib/db'
 import { midiToMusicXml } from '../lib/midi'
 import { getStaves, getTitle, guessStaffHands, loadSheet } from '../lib/score'
+import { SCORE_SOURCES } from '../lib/scoreSources'
 import type { LibraryEntry, StoredScore } from '../lib/types'
 
 interface Props {
@@ -114,13 +115,25 @@ export function Home({ onOpen }: Props) {
           <form className="url-form" onSubmit={(e) => { e.preventDefault(); openUrl() }}>
             <input
               type="url"
-              placeholder="楽譜ファイルの URL（MusicXML / MXL / MIDI）"
+              placeholder="楽譜ファイルの URL（対応サイトのみ）"
               value={url}
               required
               onChange={(e) => setUrl(e.target.value)}
             />
             <button type="submit" disabled={busy !== null}>URLから取り込む</button>
           </form>
+          <details className="sources">
+            <summary>URL から取り込めるサイト</summary>
+            <ul>
+              {SCORE_SOURCES.map((source) => (
+                <li key={source.id}>
+                  <a href={source.homepage} target="_blank" rel="noopener noreferrer">{source.name}</a>
+                  <small>{source.formats.join(' / ')}・{source.license}</small>
+                </li>
+              ))}
+            </ul>
+            <p>ほかのサイトの楽譜は、ダウンロードしてから「ファイルを取り込む」で読み込んでください。</p>
+          </details>
           <label className="file-button">
             ファイルを取り込む（MusicXML / MIDI）
             <input

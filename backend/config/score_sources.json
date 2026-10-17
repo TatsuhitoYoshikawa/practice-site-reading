@@ -1,0 +1,47 @@
+[
+  {
+    "id": "mutopia",
+    "name": "Mutopia Project",
+    "homepage": "https://www.mutopiaproject.org/",
+    "formats": ["MIDI"],
+    "license": "パブリックドメイン / CC BY / CC BY-SA（曲ごとに表示）",
+    "locations": [
+      { "host": "www.mutopiaproject.org", "path": "\\A/" },
+      { "host": "mutopiaproject.org", "path": "\\A/" },
+      { "host": "www.ibiblio.org", "path": "\\A/mutopia/" },
+      { "host": "ibiblio.org", "path": "\\A/mutopia/" }
+    ]
+  },
+  {
+    "id": "kernscores",
+    "name": "KernScores",
+    "homepage": "https://kern.humdrum.org/",
+    "formats": ["MusicXML", "MIDI"],
+    "license": "サイトの利用条件に従う（主に研究・教育目的）",
+    "locations": [
+      { "host": "kern.humdrum.org", "path": "\\A/cgi-bin/ksdata" },
+      { "host": "kern.ccarh.org", "path": "\\A/cgi-bin/ksdata" }
+    ]
+  },
+  {
+    "id": "wikimedia",
+    "name": "Wikimedia Commons",
+    "homepage": "https://commons.wikimedia.org/",
+    "formats": ["MIDI"],
+    "license": "自由ライセンス（ファイルごとに表示）",
+    "locations": [
+      { "host": "upload.wikimedia.org", "path": "\\A/" }
+    ]
+  },
+  {
+    "id": "github",
+    "name": "GitHub（公開リポジトリのファイル）",
+    "homepage": "https://github.com/",
+    "formats": ["MusicXML", "MXL", "MIDI"],
+    "license": "リポジトリごとのライセンスに従う",
+    "locations": [
+      { "host": "raw.githubusercontent.com", "path": "\\A/" },
+      { "host": "github.com", "path": "\\A/[^/]+/[^/]+/raw/" }
+    ]
+  }
+]

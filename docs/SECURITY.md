@@ -26,7 +26,7 @@
 - 定期的に `npm audit`、`bin/bundler-audit check --update`、`bin/brakeman` を実行する
 
 ## 4. アプリ自体
-- URL 取り込み（`ScoreFetcher`）は認証情報を一切付けずに取得する。プライベート IP への取得は拒否する
-- 社内ネットワークで backend を起動する場合、社内 IP 制限のみで守られた公開アドレスのサービスには届きうる。
-  開発サーバーは `localhost` でのみ待ち受け（Rails の既定）、外部に公開しない
+- URL 取り込み（`ScoreFetcher`）は許可リストの楽譜サイト（`backend/config/score_sources.json`）からのみ取得する。
+  任意のサイトへの中継・攻撃の踏み台には使えない。認証情報は一切付けず、プライベート IP への取得も拒否する
+- 許可リストにサイトを追加するときは、ホストとパスをできるだけ狭く指定し、`frontend/src/lib/scoreSources.ts` も更新する
 - 本番の `secret_key_base` は Render の環境変数 `SECRET_KEY_BASE` で渡す

@@ -3,7 +3,8 @@ require "net/http"
 
 # URL で指定された楽譜ファイルを取得し、形式を判定して返す。
 #
-# - 取得先は http/https の公開アドレスに限る（社内ネットワーク等への中継を防ぐ）
+# - 取得先は許可した楽譜サイト（ScoreSource）の https URL に限る（任意のサイトへの中継・踏み台を防ぐ）
+# - 加えて、接続先は公開アドレスに限る（社内ネットワーク等への中継を防ぐ）
 # - 圧縮 MusicXML（.mxl）は展開して MusicXML として返す
 # - MIDI はそのまま返し、MusicXML への変換はフロントエンドで行う
 class ScoreFetcher
@@ -21,7 +22,16 @@ class ScoreFetcher
     ::/128 ::1/128 fc00::/7 fe80::/10 ff00::/8
   ].map { |cidr| IPAddr.new(cidr) }
 
-  def self.call(url, resolver: method(:resolve))
+  class << self
+    attr_writer :resolver
+
+    # 名前解決の方法（テストで差し替える）
+    def resolver
+      @resolver || method(:resolve)
+    end
+  end
+
+  def self.call(url, resolver: self.resolver)
     new(resolver).fetch(url)
   end
 
@@ -52,6 +62,7 @@ class ScoreFetcher
 
   # 本文と、リダイレクトをたどった後の URI を返す
   def download(uri, redirects = 0)
+    ensure_allowed_source(uri)
     ip = safe_ip_for(uri.host)
     # 名前解決をやり直さず、確認済みのアドレスに直接接続する（環境変数のプロキシも使わない）
     http = Net::HTTP.new(uri.host, uri.port, nil)
@@ -75,6 +86,11 @@ class ScoreFetcher
     raise Error, "取得がタイムアウトしました"
   rescue SystemCallError, OpenSSL::SSL::SSLError, IOError => e
     raise Error, "接続できませんでした（#{e.class.name}）"
+  end
+
+  def ensure_allowed_source(uri)
+    return if ScoreSource.allowed?(uri)
+    raise Error, "このサイトからは取り込めません（対応サイト: #{ScoreSource.all.map(&:name).join('、')}）"
   end
 
   def safe_ip_for(host)

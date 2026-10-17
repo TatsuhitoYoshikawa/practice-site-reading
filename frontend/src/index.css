@@ -127,3 +127,8 @@ h2 { font-size: 1rem; margin: 0 0 8px; color: var(--muted); }
 .muted { color: var(--muted); }
 .url-form { display: flex; gap: 6px; margin-bottom: 8px; }
 .url-form input { flex: 1; min-width: 0; font: inherit; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; }
+.sources { margin-bottom: 8px; font-size: 0.85rem; }
+.sources summary { cursor: pointer; color: var(--accent); }
+.sources ul { margin: 4px 0; padding-left: 1.2em; }
+.sources li small { color: var(--muted); margin-left: 6px; }
+.sources p { margin: 4px 0; color: var(--muted); }

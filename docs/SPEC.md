@@ -40,7 +40,11 @@ URL指定の楽譜ファイル ───────────┼──> Music
 ### 3.2 URL指定・ファイル取り込み
 - URL 指定の対応形式：MusicXML（.musicxml/.xml）、圧縮MusicXML（.mxl）、MIDI（.mid）。PDF は OMR 対応後
   - CORS 回避のため Rails が中継取得する
-  - 安全対策：http/https のみ、取得先のプライベートIP禁止（名前解決した IP に直接接続）、リダイレクト3回まで、10MB・10秒上限、1分20回のレート制限
+  - 取得先は許可リストの楽譜サイトの https URL に限る（`backend/config/score_sources.json`）
+    - Mutopia Project（MIDI）、KernScores（MusicXML / MIDI）、Wikimedia Commons（MIDI）、GitHub の公開ファイル（MusicXML / MXL / MIDI）
+    - IMSLP は利用規約の確認画面・ボット判定があり自動取得に向かないため対象外（PDF 中心のため OMR 対応時に再検討）
+    - 許可リストにないサイトの楽譜は、ダウンロードしてファイル取り込みで読み込む
+  - 安全対策：許可リスト（リダイレクト先も判定）、取得先のプライベートIP禁止（名前解決した IP に直接接続）、リダイレクト3回まで、10MB・10秒上限、1分20回のレート制限
   - 形式はファイルの中身で判定する（拡張子は見ない）。MXL は Rails で展開して MusicXML にする
 - 端末のファイル取り込み：MusicXML / MIDI
 - MIDI → MusicXML の変換はフロントエンドで行う（`frontend/src/lib/midi.ts`）
