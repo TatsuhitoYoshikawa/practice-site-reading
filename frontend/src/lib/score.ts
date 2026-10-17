@@ -14,8 +14,8 @@ export async function loadSheet(musicXml: string): Promise<MusicSheet> {
   return osmd.Sheet
 }
 
-export function getTitle(sheet: MusicSheet): string {
-  return sheet.TitleString || sheet.Title?.text || '無題'
+export function getTitle(sheet: MusicSheet): string | null {
+  return sheet.TitleString || sheet.Title?.text || null
 }
 
 export function getStaves(sheet: MusicSheet): StaffInfo[] {

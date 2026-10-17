@@ -37,9 +37,17 @@ URL指定の楽譜ファイル ───────────┼──> Music
 - エンジン：**Audiveris**（OSS、無料。AGPL-3.0）を外部コマンドとして呼び出す
 - 確認画面：元画像と認識結果の楽譜を並べて表示。MVPでは音符の手修正機能は持たない（再アップロードで対応）
 
-### 3.2 URL指定
-- 対応形式：MusicXML（.musicxml/.xml）、圧縮MusicXML（.mxl）、MIDI（.mid）、PDF（→ OMR へ）
-- CORS 回避のため Rails が中継取得する（サイズ上限・タイムアウト・取得先のプライベートIP禁止を設ける）
+### 3.2 URL指定・ファイル取り込み
+- URL 指定の対応形式：MusicXML（.musicxml/.xml）、圧縮MusicXML（.mxl）、MIDI（.mid）。PDF は OMR 対応後
+  - CORS 回避のため Rails が中継取得する
+  - 安全対策：http/https のみ、取得先のプライベートIP禁止（名前解決した IP に直接接続）、リダイレクト3回まで、10MB・10秒上限、1分20回のレート制限
+  - 形式はファイルの中身で判定する（拡張子は見ない）。MXL は Rails で展開して MusicXML にする
+- 端末のファイル取り込み：MusicXML / MIDI
+- MIDI → MusicXML の変換はフロントエンドで行う（`frontend/src/lib/midi.ts`）
+  - 16分音符単位に量子化し、2段譜（上段ト音記号・下段ヘ音記号）にする
+  - トラックが2つなら音の高い方を上段、それ以外は中央ド以上を上段に振り分ける
+  - 各段は1声部にまとめ、同時に鳴り始める音は和音、次の音の開始で前の音を切る
+  - 小節をまたぐ音・書き表せない長さの音はタイでつなぐ
 
 ### 3.3 アプリ内ライブラリ
 - パブリックドメインの初心者向け楽曲を同梱（フロントエンドの静的ファイル `frontend/public/library/`）
@@ -106,7 +114,7 @@ URL指定の楽譜ファイル ───────────┼──> Music
 |---|---|---|
 | POST | /api/omr_jobs | 画像/PDF をアップロードし OMR ジョブを作成 → `{ id }` |
 | GET | /api/omr_jobs/:id | 状態（queued/processing/done/failed）と、完了時は MusicXML |
-| POST | /api/score_fetches | URL を受け取り楽譜ファイルを中継取得 |
+| POST | /api/score_fetches | `{ url }` を受け取り楽譜を中継取得 → `{ format: "musicxml" \| "midi", content, filename }`（midi は Base64）。失敗時は 422 `{ error }` |
 
 ## 8. デプロイ（Render）
 
@@ -121,7 +129,7 @@ URL指定の楽譜ファイル ───────────┼──> Music
 
 ## 9. 実装の進め方
 1. 練習画面（楽譜表示・鍵盤・判定・伴奏）＋ライブラリ＋ MusicXML ファイル取り込み ← 実装済み
-2. Rails：URL 取り込み（MusicXML / MXL / MIDI）
+2. Rails：URL 取り込み（MusicXML / MXL / MIDI） ← 実装済み
 3. Rails：画像・PDF の OMR
 
 ## 10. MVP 後の候補

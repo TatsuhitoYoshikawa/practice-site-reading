@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { fetchScoreFromUrl } from '../lib/api'
 import { db } from '../lib/db'
+import { midiToMusicXml } from '../lib/midi'
 import { getStaves, getTitle, guessStaffHands, loadSheet } from '../lib/score'
 import type { LibraryEntry, StoredScore } from '../lib/types'
 
@@ -14,6 +16,7 @@ export function Home({ onOpen }: Props) {
   const [library, setLibrary] = useState<LibraryEntry[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [url, setUrl] = useState('')
   const scores = useLiveQuery(() => db.scores.orderBy('createdAt').reverse().toArray(), [])
 
   useEffect(() => {
@@ -23,10 +26,10 @@ export function Home({ onOpen }: Props) {
       .catch(() => setError('ライブラリを読み込めませんでした'))
   }, [])
 
-  const importScore = async (musicXml: string, fields: Pick<StoredScore, 'source' | 'libraryId'>, title?: string) => {
+  const importScore = async (musicXml: string, fields: Pick<StoredScore, 'source' | 'libraryId'>, title: string) => {
     const sheet = await loadSheet(musicXml)
     const score: StoredScore = {
-      title: title ?? getTitle(sheet),
+      title: getTitle(sheet) ?? title,
       musicXml,
       staffHands: guessStaffHands(getStaves(sheet)),
       createdAt: Date.now(),
@@ -60,8 +63,22 @@ export function Home({ onOpen }: Props) {
   })
 
   const openFile = (file: File) => run(async () => {
-    const text = await file.text()
-    onOpen(await importScore(text, { source: 'upload' }))
+    const title = stripExtension(file.name)
+    const musicXml = isMidiName(file.name)
+      ? midiToMusicXml(await file.arrayBuffer(), title)
+      : await file.text()
+    onOpen(await importScore(musicXml, { source: 'upload' }, title))
+  })
+
+  const openUrl = () => run(async () => {
+    const fetched = await fetchScoreFromUrl(url)
+    const title = stripExtension(decodeURIComponent(fetched.filename)) || 'URLから取り込んだ楽譜'
+    const musicXml = fetched.format === 'midi'
+      ? midiToMusicXml(Uint8Array.from(atob(fetched.content), (c) => c.charCodeAt(0)), title)
+      : fetched.content
+    const score = await importScore(musicXml, { source: 'url' }, title)
+    setUrl('')
+    onOpen(score)
   })
 
   const remove = (score: StoredScore) => {
@@ -77,6 +94,7 @@ export function Home({ onOpen }: Props) {
     <div className="home">
       <h1>譜読みれんしゅう</h1>
       {error && <p className="error">{error}</p>}
+      {busy && <p className="muted">読み込み中…</p>}
       <div className="columns">
         <section>
           <h2>ライブラリ</h2>
@@ -93,11 +111,21 @@ export function Home({ onOpen }: Props) {
         </section>
         <section>
           <h2>じぶんの楽譜</h2>
+          <form className="url-form" onSubmit={(e) => { e.preventDefault(); openUrl() }}>
+            <input
+              type="url"
+              placeholder="楽譜ファイルの URL（MusicXML / MXL / MIDI）"
+              value={url}
+              required
+              onChange={(e) => setUrl(e.target.value)}
+            />
+            <button type="submit" disabled={busy}>URLから取り込む</button>
+          </form>
           <label className="file-button">
-            MusicXML を取り込む
+            ファイルを取り込む（MusicXML / MIDI）
             <input
               type="file"
-              accept=".musicxml,.xml,application/vnd.recordare.musicxml+xml,text/xml"
+              accept=".musicxml,.xml,.mid,.midi,application/vnd.recordare.musicxml+xml,text/xml,audio/midi"
               disabled={busy}
               onChange={(e) => {
                 const file = e.target.files?.[0]
@@ -120,4 +148,12 @@ export function Home({ onOpen }: Props) {
       </div>
     </div>
   )
+}
+
+function stripExtension(name: string): string {
+  return name.replace(/\.[^.]+$/, '')
+}
+
+function isMidiName(name: string): boolean {
+  return /\.midi?$/i.test(name)
 }
