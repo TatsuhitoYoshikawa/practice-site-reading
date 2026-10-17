@@ -10,8 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "dexie": "^4.4.6",
+    "dexie-react-hooks": "^4.4.0",
+    "opensheetmusicdisplay": "^2.2.1",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "tone": "^15.1.22"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
