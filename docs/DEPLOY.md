@@ -11,7 +11,7 @@ Render のダッシュボード → New → Web Service → **Public Git Reposit
 | 項目 | 値 |
 |---|---|
 | Name | `practice-site-reading-api` |
-| Branch | デプロイするブランチ |
+| Branch | `main` |
 | Root Directory | `backend` |
 | Runtime | Ruby |
 | Build Command | `bundle install` |
