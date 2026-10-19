@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { fetchScoreFromUrl } from '../lib/api'
 import { db } from '../lib/db'
-import { midiToMusicXml } from '../lib/midi'
-import { getStaves, getTitle, guessStaffHands, loadSheet } from '../lib/score'
 import { SCORE_SOURCES } from '../lib/scoreSources'
 import type { LibraryEntry, StoredScore } from '../lib/types'
 
@@ -28,6 +26,7 @@ export function Home({ onOpen }: Props) {
   }, [])
 
   const importScore = async (musicXml: string, fields: Pick<StoredScore, 'source' | 'libraryId'>, title: string) => {
+    const { getStaves, getTitle, guessStaffHands, loadSheet } = await import('../lib/score')
     const sheet = await loadSheet(musicXml)
     const score: StoredScore = {
       title: getTitle(sheet) ?? title,
@@ -66,7 +65,7 @@ export function Home({ onOpen }: Props) {
   const openFile = (file: File) => run(async () => {
     const title = stripExtension(file.name)
     const musicXml = isMidiName(file.name)
-      ? midiToMusicXml(await file.arrayBuffer(), title)
+      ? (await import('../lib/midi')).midiToMusicXml(await file.arrayBuffer(), title)
       : await file.text()
     onOpen(await importScore(musicXml, { source: 'upload' }, title))
   })
@@ -75,7 +74,7 @@ export function Home({ onOpen }: Props) {
     const fetched = await fetchScoreFromUrl(url)
     const title = stripExtension(decodeURIComponent(fetched.filename)) || 'URLから取り込んだ楽譜'
     const musicXml = fetched.format === 'midi'
-      ? midiToMusicXml(Uint8Array.from(atob(fetched.content), (c) => c.charCodeAt(0)), title)
+      ? (await import('../lib/midi')).midiToMusicXml(Uint8Array.from(atob(fetched.content), (c) => c.charCodeAt(0)), title)
       : fetched.content
     const score = await importScore(musicXml, { source: 'url' }, title)
     setUrl('')

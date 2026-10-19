@@ -5,31 +5,41 @@ const SAMPLE_BASE_URL = 'https://tonejs.github.io/audio/salamander/'
 const SAMPLE_NOTES = ['A0', 'C1', 'D#1', 'F#1', 'A1', 'C2', 'D#2', 'F#2', 'A2', 'C3', 'D#3', 'F#3', 'A3', 'C4', 'D#4',
   'F#4', 'A4', 'C5', 'D#5', 'F#5', 'A5', 'C6', 'D#6', 'F#6', 'A6', 'C7', 'D#7', 'F#7', 'A7', 'C8']
 
+/** サンプルは半音3つおきに用意されているので、音域の外側もこの分だけ読み込む */
+const SAMPLE_INTERVAL = 3
+
 let sampler: Tone.Sampler | null = null
 let fallback: Tone.PolySynth | null = null
-let loaded = false
+const requestedSamples = new Set<string>()
+let pendingSamples = 0
 
 function getInstrument(): Tone.Sampler | Tone.PolySynth {
-  if (!sampler) {
-    sampler = new Tone.Sampler({
-      urls: Object.fromEntries(SAMPLE_NOTES.map((n) => [n, `${n.replace('#', 's')}.mp3`])),
-      baseUrl: SAMPLE_BASE_URL,
-      release: 1,
-      onload: () => {
-        loaded = true
-      },
-    }).toDestination()
-  }
-  if (loaded) return sampler
+  if (sampler && requestedSamples.size > 0 && pendingSamples === 0) return sampler
   // サンプルの読み込みが終わるまでは簡易シンセで鳴らす
   fallback ??= new Tone.PolySynth(Tone.Synth, { volume: -8 }).toDestination()
   return fallback
 }
 
+/**
+ * 曲の音域（MIDI ノート番号）を鳴らすのに必要なピアノのサンプルだけを読み込み始める。
+ * 練習画面を開いた時点で呼び、スタートまでに読み込みを済ませておく。
+ */
+export function preloadPiano(low: number, high: number): void {
+  sampler ??= new Tone.Sampler({ release: 1 }).toDestination()
+  for (const note of SAMPLE_NOTES) {
+    const midi = Tone.Frequency(note).toMidi()
+    if (midi < low - SAMPLE_INTERVAL || midi > high + SAMPLE_INTERVAL || requestedSamples.has(note)) continue
+    requestedSamples.add(note)
+    pendingSamples++
+    sampler.add(note as Tone.Unit.Note, `${SAMPLE_BASE_URL}${note.replace('#', 's')}.mp3`, () => {
+      pendingSamples--
+    })
+  }
+}
+
 /** ユーザー操作の中で呼び、音声出力を有効にする（ブラウザの自動再生制限のため） */
 export async function startAudio(): Promise<void> {
   await Tone.start()
-  getInstrument()
 }
 
 export function now(): number {

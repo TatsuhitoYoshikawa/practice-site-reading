@@ -1,8 +1,13 @@
-import { useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Home } from './screens/Home'
-import { Practice, type PracticeSettings } from './screens/Practice'
-import { Setup } from './screens/Setup'
+import type { PracticeSettings } from './screens/Practice'
 import type { StoredScore } from './lib/types'
+
+// 楽譜表示・音源のライブラリは大きいので、ホーム画面の表示後に読み込む
+const loadSetup = () => import('./screens/Setup')
+const loadPractice = () => import('./screens/Practice')
+const Setup = lazy(() => loadSetup().then((m) => ({ default: m.Setup })))
+const Practice = lazy(() => loadPractice().then((m) => ({ default: m.Practice })))
 
 type Screen =
   | { name: 'home' }
@@ -15,8 +20,17 @@ function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'home' })
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
 
+  // ホーム画面を表示したら、曲を選ぶ前に練習画面のプログラムを先読みしておく
+  useEffect(() => {
+    const id = setTimeout(() => {
+      loadSetup()
+      loadPractice()
+    }, 500)
+    return () => clearTimeout(id)
+  }, [])
+
   return (
-    <>
+    <Suspense fallback={<p className="loading">読み込み中…</p>}>
       {screen.name === 'home' && <Home onOpen={(score) => setScreen({ name: 'setup', score })} />}
       {screen.name === 'setup' && (
         <Setup
@@ -37,7 +51,7 @@ function App() {
         />
       )}
       <div className="rotate-hint">スマホを横向きにしてください</div>
-    </>
+    </Suspense>
   )
 }
 

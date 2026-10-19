@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay'
 import { Keyboard, type KeyFlash } from '../components/Keyboard'
-import { startAudio } from '../lib/audio'
+import { preloadPiano, startAudio } from '../lib/audio'
 import { db } from '../lib/db'
 import { keyboardRange } from '../lib/keyboard'
 import { buildSteps, getBpm, noteRange, wholeNoteSeconds } from '../lib/score'
@@ -57,7 +57,10 @@ export function Practice({ score, settings, onExit }: Props) {
       osmd.render()
       osmd.cursor.show()
       osmdRef.current = osmd
-      setSteps(buildSteps(osmd, score.staffHands))
+      const built = buildSteps(osmd, score.staffHands)
+      const midis = built.flatMap((step) => step.notes.map((n) => n.midi))
+      if (midis.length > 0) preloadPiano(Math.min(...midis), Math.max(...midis))
+      setSteps(built)
       setWholeNoteSec(wholeNoteSeconds(getBpm(osmd.Sheet)))
     }).catch((e: unknown) => {
       if (!cancelled) setError(`楽譜を読み込めませんでした: ${e instanceof Error ? e.message : String(e)}`)
