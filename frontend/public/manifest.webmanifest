@@ -1,0 +1,10 @@
+{
+  "name": "譜読みれんしゅう",
+  "short_name": "譜読み",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#fffdf8",
+  "theme_color": "#fffdf8",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

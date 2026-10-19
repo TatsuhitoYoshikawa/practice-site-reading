@@ -7,13 +7,38 @@ import { db } from '../lib/db'
 import { keyboardRange } from '../lib/keyboard'
 import { buildSteps, getBpm, noteRange, wholeNoteSeconds } from '../lib/score'
 import { PracticeSession, type SessionResult } from '../lib/session'
-import type { Mode, PracticeHand, Step, StoredScore } from '../lib/types'
+import type { Hand, Mode, PracticeHand, Step, StoredScore } from '../lib/types'
 
 export interface PracticeSettings {
   hand: PracticeHand
   mode: Mode
   tempoRate: number
   accompaniment: boolean
+}
+
+/**
+ * カーソルのある段が見えるように楽譜をスクロールする。
+ * 段が表示枠より高いときは、練習している手の譜表（右手なら上端、左手なら下端まで）を優先して見せる
+ */
+function scrollToCursor(osmd: OpenSheetMusicDisplay, container: HTMLElement, staffHands: Hand[], hand: PracticeHand) {
+  const measures = osmd.GraphicSheet.MeasureList[osmd.cursor.Iterator.CurrentMeasureIndex]
+  if (!measures) return
+  const measure = measures[staffHands.indexOf(hand)] ?? measures.find(Boolean)
+  if (!measure) return
+
+  const svg = container.querySelector('svg')
+  const offset = svg ? svg.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop : 0
+  const view = container.clientHeight
+  const [systemTop, systemBottom] = verticalExtent(measure.ParentMusicSystem.PositionAndShape, osmd.Zoom)
+  let top: number
+  if (systemBottom - systemTop + 2 * SCORE_MARGIN_PX <= view) {
+    top = systemTop - (view - (systemBottom - systemTop)) / 2
+  } else {
+    const [staffTop, staffBottom] = verticalExtent(measure.ParentStaffLine.PositionAndShape, osmd.Zoom)
+    top = hand === 'right' ? staffTop - SCORE_MARGIN_PX : staffBottom - view + SCORE_MARGIN_PX
+  }
+  top = Math.max(0, top + offset)
+  if (Math.abs(container.scrollTop - top) > 1) container.scrollTo({ top, behavior: 'smooth' })
 }
 
 interface Props {
@@ -23,6 +48,45 @@ interface Props {
 }
 
 const FLASH_MS = 250
+/** 楽譜の表示倍率。1段（右手と左手の組）が表示枠に収まらない曲では MIN_ZOOM まで縮める */
+const BASE_ZOOM = 0.75
+const MIN_ZOOM = 0.55
+/** OSMD の座標1単位あたりのピクセル数（倍率1のとき） */
+const OSMD_UNIT_PX = 10
+/** 段の上下に空ける余白（px）。OSMD の領域は加線の端などを数px小さく見積もるので、その分も含める */
+const SCORE_MARGIN_PX = 12
+
+interface VerticalBox {
+  AbsolutePosition: { y: number }
+  BorderMarginTop: number
+  BorderMarginBottom: number
+}
+
+/** OSMD の領域（五線の外にはみ出した音符も含む）の上端・下端を、楽譜の SVG 上のピクセルで返す */
+function verticalExtent(box: VerticalBox, zoom: number): [number, number] {
+  const scale = OSMD_UNIT_PX * zoom
+  return [(box.AbsolutePosition.y + box.BorderMarginTop) * scale, (box.AbsolutePosition.y + box.BorderMarginBottom) * scale]
+}
+
+/** 一番高い段が表示枠に収まる倍率（MIN_ZOOM〜BASE_ZOOM）。段の高さは倍率にほぼ比例する */
+function fittingZoom(osmd: OpenSheetMusicDisplay, viewHeight: number): number {
+  const systems = osmd.GraphicSheet.MusicPages.flatMap((page) => page.MusicSystems)
+  const tallest = Math.max(...systems.map((system) => {
+    const [top, bottom] = verticalExtent(system.PositionAndShape, osmd.Zoom)
+    return bottom - top
+  }))
+  const available = viewHeight - 2 * SCORE_MARGIN_PX
+  return Math.min(BASE_ZOOM, Math.max(MIN_ZOOM, (osmd.Zoom * available) / tallest))
+}
+
+/** 表示枠に合わせて倍率を変え、描き直す（カーソル位置は呼び出し側で戻す） */
+function renderToFit(osmd: OpenSheetMusicDisplay, viewHeight: number): void {
+  const zoom = fittingZoom(osmd, viewHeight)
+  if (Math.abs(zoom - osmd.Zoom) < 0.02) return
+  osmd.Zoom = zoom
+  osmd.render()
+  osmd.cursor.show()
+}
 
 export function Practice({ score, settings, onExit }: Props) {
   const scoreRef = useRef<HTMLDivElement>(null)
@@ -32,6 +96,7 @@ export function Practice({ score, settings, onExit }: Props) {
   const [steps, setSteps] = useState<Step[] | null>(null)
   const [wholeNoteSec, setWholeNoteSec] = useState(2.4)
   const [hints, setHints] = useState<Set<number>>(new Set())
+  const [held, setHeld] = useState<Set<number>>(new Set())
   const [flashes, setFlashes] = useState<Map<number, KeyFlash>>(new Map())
   const [countIn, setCountIn] = useState(0)
   const [running, setRunning] = useState(false)
@@ -53,14 +118,16 @@ export function Practice({ score, settings, onExit }: Props) {
       drawComposer: false,
       drawPartNames: false,
       drawingParameters: 'compacttight',
-      followCursor: true,
     })
     osmd.load(score.musicXml).then(() => {
       if (cancelled) return
-      osmd.Zoom = 0.75
+      osmd.Zoom = BASE_ZOOM
       osmd.render()
       osmd.cursor.show()
+      renderToFit(osmd, container.clientHeight)
       osmdRef.current = osmd
+      cursorIndexRef.current = 0
+      scrollToCursor(osmd, container, score.staffHands, settings.hand)
       const built = buildSteps(osmd, score.staffHands)
       const midis = built.flatMap((step) => step.notes.map((n) => n.midi))
       if (midis.length > 0) preloadPiano(Math.min(...midis), Math.max(...midis))
@@ -74,7 +141,50 @@ export function Practice({ score, settings, onExit }: Props) {
       sessionRef.current?.stop()
       container.innerHTML = ''
     }
-  }, [score])
+  }, [score, settings.hand])
+
+  // 全画面にした・画面を回転したなどで表示枠が変わったら、倍率を合わせ直してカーソル位置を戻す
+  useEffect(() => {
+    let timer = 0
+    const onResize = () => {
+      clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        const osmd = osmdRef.current
+        const container = scoreRef.current
+        if (!osmd || !container) return
+        const index = cursorIndexRef.current
+        renderToFit(osmd, container.clientHeight)
+        osmd.cursor.reset()
+        for (let i = 0; i < index; i++) osmd.cursor.next()
+        scrollToCursor(osmd, container, score.staffHands, settings.hand)
+      }, 200)
+    }
+    window.addEventListener('resize', onResize)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [score, settings.hand])
+
+  const [fullscreen, setFullscreen] = useState(() => document.fullscreenElement !== null)
+  useEffect(() => {
+    const onChange = () => setFullscreen(document.fullscreenElement !== null)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen()
+      } else {
+        await document.documentElement.requestFullscreen()
+        // 対応している端末では横向きに固定する（できなくても続ける）
+        await (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('landscape')
+      }
+    } catch {
+      // 全画面や向きの固定に対応していない端末では何もしない
+    }
+  }
 
   const range = useMemo(
     () => keyboardRange(steps ? noteRange(steps, settings.hand) : null),
@@ -92,6 +202,7 @@ export function Practice({ score, settings, onExit }: Props) {
       osmd.cursor.next()
       cursorIndexRef.current++
     }
+    if (scoreRef.current) scrollToCursor(osmd, scoreRef.current, score.staffHands, settings.hand)
   }
 
   const flash = (midi: number, kind: KeyFlash) => {
@@ -113,9 +224,11 @@ export function Practice({ score, settings, onExit }: Props) {
     moveCursor(0)
     setResult(null)
     setHints(new Set())
+    setHeld(new Set())
     const session = new PracticeSession(steps, { ...settings, wholeNoteSec }, {
       onCursor: moveCursor,
       onHints: (midis) => setHints(new Set(midis)),
+      onHeld: (midis) => setHeld(new Set(midis)),
       onFlash: flash,
       onCountIn: setCountIn,
       onFinish: (r) => {
@@ -143,6 +256,7 @@ export function Practice({ score, settings, onExit }: Props) {
     setRunning(false)
     setCountIn(0)
     setHints(new Set())
+    setHeld(new Set())
   }
 
   const handLabel = settings.hand === 'right' ? '右手' : '左手'
@@ -160,6 +274,9 @@ export function Practice({ score, settings, onExit }: Props) {
         )}
         {piano === 'failed' && <span className="badge">ピアノ音を読み込めませんでした（簡易音で鳴ります）</span>}
         <span className="practice-meta">{handLabel} / {modeLabel}</span>
+        {document.fullscreenEnabled && (
+          <button onClick={toggleFullscreen}>{fullscreen ? '全画面を終了' : '全画面'}</button>
+        )}
         {running
           ? <button onClick={stop}>停止</button>
           : (
@@ -184,7 +301,7 @@ export function Practice({ score, settings, onExit }: Props) {
           </div>
         </div>
       )}
-      <Keyboard range={range} hints={hints} flashes={flashes} onPress={(m) => sessionRef.current?.press(m)} />
+      <Keyboard range={range} hints={hints} held={held} flashes={flashes} onPress={(m) => sessionRef.current?.press(m)} />
     </div>
   )
 }

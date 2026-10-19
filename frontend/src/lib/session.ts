@@ -6,6 +6,11 @@ import type { Mode, PracticeHand, Step } from './types'
 export const TIMING_WINDOW_SEC = 0.15
 /** テンポモード開始前のカウント数（拍） */
 const COUNT_IN_BEATS = 4
+/**
+ * テンポモードで和音の1音目を押してから、残りの音を受け付ける時間（秒）。
+ * スマホでは同時に押しにくいので、1音ずつ押しても間に合うようにする
+ */
+const CHORD_GRACE_SEC = 0.8
 /** ユーザーが鳴らす音の最短の長さ（秒） */
 const MIN_USER_NOTE_SEC = 0.4
 
@@ -31,6 +36,8 @@ export interface SessionCallbacks {
   /** 正解の鍵盤として光らせる音 */
   onHints: (midis: number[]) => void
   onFlash: (midi: number, kind: 'correct' | 'wrong') => void
+  /** 和音のうち、押し終えた音（全部そろうまで光らせておく） */
+  onHeld: (midis: number[]) => void
   /** テンポモードのカウントイン（残り拍数。0 で開始） */
   onCountIn: (remaining: number) => void
   onFinish: (result: SessionResult) => void
@@ -44,6 +51,8 @@ interface Target {
   /** 音の長さ（秒） */
   duration: number
   hit: Set<number>
+  /** テンポモードで和音の1音目を押した時刻（秒） */
+  firstHitAt: number | null
   missed: boolean
   done: boolean
 }
@@ -76,6 +85,7 @@ export class PracticeSession {
         at: step.time * this.wholeSec,
         duration: length * this.wholeSec,
         hit: new Set<number>(),
+        firstHitAt: null,
         missed: false,
         done: false,
       }]
@@ -124,11 +134,9 @@ export class PracticeSession {
       this.callbacks.onHints(target.midis.filter((m) => !target.hit.has(m)))
       return
     }
-    playNotes([midi], Math.max(target.duration, MIN_USER_NOTE_SEC))
     this.callbacks.onFlash(midi, 'correct')
-    target.hit.add(midi)
-    const remaining = target.midis.filter((m) => !target.hit.has(m))
-    if (remaining.length > 0) {
+    if (!this.acceptNote(target, midi)) {
+      const remaining = target.midis.filter((m) => !target.hit.has(m))
       if (target.missed) this.callbacks.onHints(remaining)
       return
     }
@@ -184,10 +192,11 @@ export class PracticeSession {
       }
 
       // 判定の受付時間を過ぎた音は弾き逃しにする
-      while (this.current < this.targets.length && this.targets[this.current].at + TIMING_WINDOW_SEC < elapsed) {
+      while (this.current < this.targets.length && this.deadline(this.targets[this.current]) < elapsed) {
         const target = this.targets[this.current]
         if (!target.done) {
           target.missed = true
+          this.callbacks.onHeld([])
           this.callbacks.onHints(target.midis)
         } else if (!target.missed) {
           this.callbacks.onHints([])
@@ -206,7 +215,9 @@ export class PracticeSession {
 
   private pressTempoMode(midi: number): void {
     const elapsed = clockSeconds() - this.startAt
-    const inWindow = this.targets.filter((t) => !t.done && Math.abs(t.at - elapsed) <= TIMING_WINDOW_SEC)
+    const inWindow = this.targets.filter(
+      (t) => !t.done && t.at - TIMING_WINDOW_SEC <= elapsed && elapsed <= this.deadline(t),
+    )
     const target = inWindow
       .filter((t) => t.midis.includes(midi) && !t.hit.has(midi))
       .sort((a, b) => Math.abs(a.at - elapsed) - Math.abs(b.at - elapsed))[0]
@@ -222,16 +233,41 @@ export class PracticeSession {
       return
     }
 
-    playNotes([midi], Math.max(target.duration, MIN_USER_NOTE_SEC))
     this.callbacks.onFlash(midi, 'correct')
-    target.hit.add(midi)
-    if (target.midis.every((m) => target.hit.has(m))) {
+    target.firstHitAt ??= elapsed
+    if (this.acceptNote(target, midi)) {
       target.done = true
       this.callbacks.onHints([])
     }
   }
 
+  /** テンポモードで Target を受け付ける最後の時刻（和音を押し始めていれば少し延ばす） */
+  private deadline(target: Target): number {
+    if (target.firstHitAt === null) return target.at + TIMING_WINDOW_SEC
+    return Math.max(target.at + TIMING_WINDOW_SEC, target.firstHitAt + CHORD_GRACE_SEC)
+  }
+
   // ---- 共通 ----
+
+  /**
+   * 正しい音を押したことを記録する。単音はすぐ鳴らし、和音は全部そろったときにまとめて鳴らす。
+   * @returns Target の音がすべてそろったか
+   */
+  private acceptNote(target: Target, midi: number): boolean {
+    target.hit.add(midi)
+    const duration = Math.max(target.duration, MIN_USER_NOTE_SEC)
+    if (target.midis.length === 1) {
+      playNotes([midi], duration)
+      return true
+    }
+    if (target.midis.some((m) => !target.hit.has(m))) {
+      this.callbacks.onHeld([...target.hit])
+      return false
+    }
+    this.callbacks.onHeld([])
+    playNotes(target.midis, duration)
+    return true
+  }
 
   /**
    * steps[from, to) のうち練習していない手の音を、伴奏として予約する。
@@ -257,6 +293,7 @@ export class PracticeSession {
     const total = this.targets.length
     const correct = this.targets.filter((t) => t.done && !t.missed).length
     this.callbacks.onHints([])
+    this.callbacks.onHeld([])
     this.callbacks.onFinish({ total, correct, accuracy: total === 0 ? 1 : correct / total })
   }
 }

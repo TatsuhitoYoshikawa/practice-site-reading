@@ -76,7 +76,7 @@ h2 { font-size: 1rem; margin: 0 0 8px; color: var(--muted); }
 
 .practice-bar {
   display: flex; align-items: center; gap: 12px;
-  padding: 6px max(12px, env(safe-area-inset-left));
+  padding: 4px max(12px, env(safe-area-inset-left));
   border-bottom: 1px solid var(--border);
   flex: none;
 }
@@ -112,6 +112,8 @@ h2 { font-size: 1rem; margin: 0 0 8px; color: var(--muted); }
 }
 .key-label { font-size: 0.7rem; color: var(--muted); pointer-events: none; }
 .key.hint { background: var(--hint); }
+.key.white.held { background: #b9e4bb; }
+.key.black.held { background: #2e7d32; }
 .key.correct { background: var(--correct); }
 .key.wrong { background: var(--wrong); }
 
@@ -159,3 +161,4 @@ button:not(:disabled):active, .file-button:active { transform: scale(0.96); filt
 .level { margin-left: 6px; font-size: 0.7rem; padding: 1px 6px; border-radius: 999px; vertical-align: middle; }
 .level-easy { background: #e8f5e9; color: #2e7d32; }
 .level-mid { background: #fff3e0; color: #b26a00; }
+.practice-bar button { padding: 4px 10px; }
