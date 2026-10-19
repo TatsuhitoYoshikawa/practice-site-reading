@@ -3,7 +3,7 @@ import { Loading } from '../components/Loading'
 import { db } from '../lib/db'
 import { COMFORTABLE_RANGE_SEMITONES } from '../lib/keyboard'
 import { getStaves, loadSheet, staffRanges } from '../lib/score'
-import type { Hand, PracticeHand, StaffInfo, StoredScore } from '../lib/types'
+import type { Hand, Mode, PracticeHand, StaffInfo, StoredScore } from '../lib/types'
 import type { PracticeSettings } from './Practice'
 
 interface Props {
@@ -15,6 +15,11 @@ interface Props {
 
 const CLEF_LABEL: Record<StaffInfo['clef'], string> = { G: 'ト音記号', F: 'ヘ音記号', C: 'ハ音記号', other: 'その他' }
 const HAND_LABEL: Record<Hand, string> = { right: '右手', left: '左手', none: '使わない' }
+const MODE_HELP: Record<Mode, string> = {
+  wait: '正しい鍵盤を押すまで待ちます。自分のペースで進められます。',
+  tempo: '楽譜のテンポで進みます。タイミングも判定します。',
+  demo: '両手の音を楽譜どおりに鳴らします（判定・記録はしません）。',
+}
 
 export function Setup({ score, initialSettings, onBack, onStart }: Props) {
   const [staves, setStaves] = useState<StaffInfo[]>([])
@@ -103,16 +108,17 @@ export function Setup({ score, initialSettings, onBack, onStart }: Props) {
             <span>モード</span>
             <div className="segmented">
               <button className={settings.mode === 'wait' ? 'selected' : ''} onClick={() => update('mode', 'wait')}>
-                正しく弾いたら進む
+                待機
               </button>
               <button className={settings.mode === 'tempo' ? 'selected' : ''} onClick={() => update('mode', 'tempo')}>
-                テンポどおり進む
+                テンポ
               </button>
               <button className={settings.mode === 'demo' ? 'selected' : ''} onClick={() => update('mode', 'demo')}>
-                お手本を聴く
+                お手本
               </button>
             </div>
           </div>
+          <p className="muted mode-help">{MODE_HELP[settings.mode]}</p>
           {settings.mode !== 'wait' && (
             <label className="field">
               <span>テンポ {Math.round(settings.tempoRate * 100)}%</span>
@@ -123,7 +129,7 @@ export function Setup({ score, initialSettings, onBack, onStart }: Props) {
             </label>
           )}
           {settings.mode === 'demo' ? (
-            <p className="muted">両手の音を楽譜どおりに鳴らします。{HAND_LABEL[settings.hand]}の鍵盤が光るので、弾く位置を目で追えます（判定・記録はしません）。</p>
+            <p className="muted">{HAND_LABEL[settings.hand]}の鳴っている鍵盤が光るので、弾く位置を目で追えます。</p>
           ) : (
             <label className="field checkbox">
               <input
