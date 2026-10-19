@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Loading } from '../components/Loading'
 import { db } from '../lib/db'
 import { COMFORTABLE_RANGE_SEMITONES } from '../lib/keyboard'
 import { getStaves, loadSheet, staffRanges } from '../lib/score'
@@ -20,11 +21,13 @@ export function Setup({ score, initialSettings, onBack, onStart }: Props) {
   const [ranges, setRanges] = useState<([number, number] | null)[]>([])
   const [staffHands, setStaffHands] = useState<Hand[]>(score.staffHands)
   const [settings, setSettings] = useState(initialSettings)
+  const [analyzed, setAnalyzed] = useState(false)
 
   useEffect(() => {
     loadSheet(score.musicXml).then((sheet) => {
       setStaves(getStaves(sheet))
       setRanges(staffRanges(sheet))
+      setAnalyzed(true)
     })
   }, [score])
 
@@ -58,6 +61,7 @@ export function Setup({ score, initialSettings, onBack, onStart }: Props) {
       <div className="columns">
         <section>
           <h2>譜表の割り当て</h2>
+          {!analyzed && <Loading message="楽譜を解析中…" />}
           <table className="staff-table">
             <tbody>
               {staves.map((staff) => (
@@ -128,8 +132,8 @@ export function Setup({ score, initialSettings, onBack, onStart }: Props) {
           {selectedRange !== null && selectedRange > COMFORTABLE_RANGE_SEMITONES && (
             <p className="warning">この曲は音域が広いため、スマホでは鍵盤が窮屈になります</p>
           )}
-          <button className="primary start" disabled={selectedRange === null} onClick={start}>
-            練習をはじめる
+          <button className="primary start" disabled={!analyzed || selectedRange === null} onClick={start}>
+            {analyzed ? '練習をはじめる' : '楽譜を解析中…'}
           </button>
         </section>
       </div>

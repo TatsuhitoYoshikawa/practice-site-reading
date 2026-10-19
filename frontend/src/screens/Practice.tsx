@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay'
 import { Keyboard, type KeyFlash } from '../components/Keyboard'
-import { preloadPiano, startAudio } from '../lib/audio'
+import { Loading } from '../components/Loading'
+import { pianoStatus, preloadPiano, startAudio, subscribePianoStatus } from '../lib/audio'
 import { db } from '../lib/db'
 import { keyboardRange } from '../lib/keyboard'
 import { buildSteps, getBpm, noteRange, wholeNoteSeconds } from '../lib/score'
@@ -36,6 +37,9 @@ export function Practice({ score, settings, onExit }: Props) {
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<SessionResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [piano, setPiano] = useState(pianoStatus)
+
+  useEffect(() => subscribePianoStatus(setPiano), [])
 
   // 楽譜を描画し、カーソル位置の一覧を作る
   useEffect(() => {
@@ -151,12 +155,21 @@ export function Practice({ score, settings, onExit }: Props) {
       <header className="practice-bar">
         <button onClick={() => { stop(); onExit() }}>← 戻る</button>
         <span className="practice-title">{score.title}</span>
+        {piano === 'loading' && (
+          <span className="badge"><span className="spinner small" aria-hidden="true" />ピアノ音を読み込み中（簡易音で鳴ります）</span>
+        )}
+        {piano === 'failed' && <span className="badge">ピアノ音を読み込めませんでした（簡易音で鳴ります）</span>}
         <span className="practice-meta">{handLabel} / {modeLabel}</span>
         {running
           ? <button onClick={stop}>停止</button>
-          : <button className="primary" onClick={start} disabled={!steps}>{result ? 'もう一度' : 'スタート'}</button>}
+          : (
+            <button className="primary" onClick={start} disabled={!steps}>
+              {!steps ? '準備中…' : result ? 'もう一度' : 'スタート'}
+            </button>
+          )}
       </header>
       <div className="score-area" ref={scoreRef} />
+      {!steps && !error && <Loading overlay message="楽譜を表示中…" />}
       {error && <div className="overlay"><p>{error}</p></div>}
       {countIn > 0 && <div className="overlay count-in">{countIn}</div>}
       {result && (

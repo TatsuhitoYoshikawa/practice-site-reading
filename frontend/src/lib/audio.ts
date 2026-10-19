@@ -8,14 +8,35 @@ const SAMPLE_NOTES = ['A0', 'C1', 'D#1', 'F#1', 'A1', 'C2', 'D#2', 'F#2', 'A2', 
 /** サンプルは半音3つおきに用意されているので、音域の外側もこの分だけ読み込む */
 const SAMPLE_INTERVAL = 3
 
+export type PianoStatus = 'idle' | 'loading' | 'ready' | 'failed'
+
 let sampler: Tone.Sampler | null = null
 let fallback: Tone.PolySynth | null = null
 const requestedSamples = new Set<string>()
 let pendingSamples = 0
+let loadedSamples = 0
+const statusListeners = new Set<(status: PianoStatus) => void>()
+
+export function pianoStatus(): PianoStatus {
+  if (pendingSamples > 0) return 'loading'
+  if (loadedSamples > 0) return 'ready'
+  return requestedSamples.size > 0 ? 'failed' : 'idle'
+}
+
+/** ピアノ音の読み込み状況の変化を受け取る。戻り値で購読をやめる */
+export function subscribePianoStatus(listener: (status: PianoStatus) => void): () => void {
+  statusListeners.add(listener)
+  return () => statusListeners.delete(listener)
+}
+
+function notifyStatus(): void {
+  const status = pianoStatus()
+  for (const listener of statusListeners) listener(status)
+}
 
 function getInstrument(): Tone.Sampler | Tone.PolySynth {
-  if (sampler && requestedSamples.size > 0 && pendingSamples === 0) return sampler
-  // サンプルの読み込みが終わるまでは簡易シンセで鳴らす
+  if (sampler && pianoStatus() === 'ready') return sampler
+  // サンプルの読み込みが終わるまで（または読み込めなかったとき）は簡易シンセで鳴らす
   fallback ??= new Tone.PolySynth(Tone.Synth, { volume: -8 }).toDestination()
   return fallback
 }
@@ -25,16 +46,27 @@ function getInstrument(): Tone.Sampler | Tone.PolySynth {
  * 練習画面を開いた時点で呼び、スタートまでに読み込みを済ませておく。
  */
 export function preloadPiano(low: number, high: number): void {
-  sampler ??= new Tone.Sampler({ release: 1 }).toDestination()
+  const target = (sampler ??= new Tone.Sampler({ release: 1 }).toDestination())
   for (const note of SAMPLE_NOTES) {
     const midi = Tone.Frequency(note).toMidi()
     if (midi < low - SAMPLE_INTERVAL || midi > high + SAMPLE_INTERVAL || requestedSamples.has(note)) continue
     requestedSamples.add(note)
     pendingSamples++
-    sampler.add(note as Tone.Unit.Note, `${SAMPLE_BASE_URL}${note.replace('#', 's')}.mp3`, () => {
-      pendingSamples--
-    })
+    const buffer = new Tone.ToneAudioBuffer(
+      `${SAMPLE_BASE_URL}${note.replace('#', 's')}.mp3`,
+      () => {
+        target.add(note as Tone.Unit.Note, buffer)
+        loadedSamples++
+        pendingSamples--
+        notifyStatus()
+      },
+      () => {
+        pendingSamples--
+        notifyStatus()
+      },
+    )
   }
+  notifyStatus()
 }
 
 /** ユーザー操作の中で呼び、音声出力を有効にする（ブラウザの自動再生制限のため） */

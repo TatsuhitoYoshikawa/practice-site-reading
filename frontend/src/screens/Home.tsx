@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { Loading } from '../components/Loading'
 import { fetchScoreFromUrl } from '../lib/api'
 import { db } from '../lib/db'
 import { SCORE_SOURCES } from '../lib/scoreSources'
@@ -12,8 +13,8 @@ interface Props {
 const LIBRARY_BASE = `${import.meta.env.BASE_URL}library/`
 
 export function Home({ onOpen }: Props) {
-  const [library, setLibrary] = useState<LibraryEntry[]>([])
-  const [busy, setBusy] = useState<string | null>(null)
+  const [library, setLibrary] = useState<LibraryEntry[] | null>(null)
+  const [busy, setBusy] = useState<{ message: string; detail?: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [url, setUrl] = useState('')
   const scores = useLiveQuery(() => db.scores.orderBy('createdAt').reverse().toArray(), [])
@@ -22,7 +23,10 @@ export function Home({ onOpen }: Props) {
     fetch(`${LIBRARY_BASE}index.json`)
       .then((res) => res.json())
       .then(setLibrary)
-      .catch(() => setError('ライブラリを読み込めませんでした'))
+      .catch(() => {
+        setLibrary([])
+        setError('ライブラリを読み込めませんでした')
+      })
   }, [])
 
   const importScore = async (musicXml: string, fields: Pick<StoredScore, 'source' | 'libraryId'>, title: string) => {
@@ -39,8 +43,8 @@ export function Home({ onOpen }: Props) {
     return score
   }
 
-  const run = async (task: () => Promise<void>, message = '読み込み中…') => {
-    setBusy(message)
+  const run = async (task: () => Promise<void>, message: string, detail?: string) => {
+    setBusy({ message, detail })
     setError(null)
     try {
       await task()
@@ -60,7 +64,7 @@ export function Home({ onOpen }: Props) {
     const res = await fetch(`${LIBRARY_BASE}${entry.file}`)
     if (!res.ok) throw new Error('楽譜を取得できませんでした')
     onOpen(await importScore(await res.text(), { source: 'library', libraryId: entry.id }, entry.title))
-  })
+  }, `「${entry.title}」を読み込み中…`)
 
   const openFile = (file: File) => run(async () => {
     const title = stripExtension(file.name)
@@ -68,7 +72,7 @@ export function Home({ onOpen }: Props) {
       ? (await import('../lib/midi')).midiToMusicXml(await file.arrayBuffer(), title)
       : await file.text()
     onOpen(await importScore(musicXml, { source: 'upload' }, title))
-  })
+  }, `「${file.name}」を取り込み中…`)
 
   const openUrl = () => run(async () => {
     const fetched = await fetchScoreFromUrl(url)
@@ -79,7 +83,7 @@ export function Home({ onOpen }: Props) {
     const score = await importScore(musicXml, { source: 'url' }, title)
     setUrl('')
     onOpen(score)
-  }, '取り込み中…（サーバーが休止中の場合、起動に1分ほどかかります）')
+  }, 'URL から取り込み中…', 'サーバーが休止中の場合、起動に1分ほどかかります')
 
   const remove = (score: StoredScore) => {
     if (score.id !== undefined && confirm(`「${score.title}」を削除しますか？`)) {
@@ -94,12 +98,13 @@ export function Home({ onOpen }: Props) {
     <div className="home">
       <h1>譜読みれんしゅう</h1>
       {error && <p className="error">{error}</p>}
-      {busy && <p className="muted">{busy}</p>}
+      {busy && <Loading overlay message={busy.message} detail={busy.detail} />}
       <div className="columns">
         <section>
           <h2>ライブラリ</h2>
+          {library === null && <Loading message="曲の一覧を読み込み中…" />}
           <ul className="score-list">
-            {library.map((entry) => (
+            {library?.map((entry) => (
               <li key={entry.id}>
                 <button disabled={busy !== null} onClick={() => openLibrary(entry)}>
                   <span>{entry.title}</span>

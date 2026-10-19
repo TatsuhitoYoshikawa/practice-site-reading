@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { Loading } from './components/Loading'
 import { Home } from './screens/Home'
 import type { PracticeSettings } from './screens/Practice'
 import type { StoredScore } from './lib/types'
@@ -30,7 +31,7 @@ function App() {
   }, [])
 
   return (
-    <Suspense fallback={<p className="loading">読み込み中…</p>}>
+    <Suspense fallback={<Loading overlay message="画面を読み込み中…" />}>
       {screen.name === 'home' && <Home onOpen={(score) => setScreen({ name: 'setup', score })} />}
       {screen.name === 'setup' && (
         <Setup
