@@ -1,6 +1,7 @@
 export type Hand = 'right' | 'left' | 'none'
 export type PracticeHand = Exclude<Hand, 'none'>
-export type Mode = 'wait' | 'tempo'
+/** wait: 正しく弾いたら進む / tempo: テンポどおり進む / demo: お手本を聴く（判定なし） */
+export type Mode = 'wait' | 'tempo' | 'demo'
 
 export type ScoreSource = 'library' | 'upload' | 'url'
 

@@ -114,6 +114,8 @@ h2 { font-size: 1rem; margin: 0 0 8px; color: var(--muted); }
 .key.hint { background: var(--hint); }
 .key.white.held { background: #b9e4bb; }
 .key.black.held { background: #2e7d32; }
+.key.white.playing { background: #bbd3fb; }
+.key.black.playing { background: var(--accent); }
 .key.correct { background: var(--correct); }
 .key.wrong { background: var(--wrong); }
 

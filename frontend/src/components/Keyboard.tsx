@@ -8,12 +8,14 @@ interface Props {
   hints: Set<number>
   /** 和音のうち押し終えた音 */
   held: Set<number>
+  /** お手本再生で鳴っている音 */
+  playing: Set<number>
   /** 押した直後の一時的な色 */
   flashes: Map<number, KeyFlash>
   onPress: (midi: number) => void
 }
 
-export function Keyboard({ range, hints, held, flashes, onPress }: Props) {
+export function Keyboard({ range, hints, held, playing, flashes, onPress }: Props) {
   const [low, high] = range
   const whites: number[] = []
   const blacks: { midi: number; leftWhites: number }[] = []
@@ -27,6 +29,7 @@ export function Keyboard({ range, hints, held, flashes, onPress }: Props) {
     const classes = [base]
     if (hints.has(midi)) classes.push('hint')
     if (held.has(midi)) classes.push('held')
+    if (playing.has(midi)) classes.push('playing')
     const flash = flashes.get(midi)
     if (flash) classes.push(flash)
     return classes.join(' ')

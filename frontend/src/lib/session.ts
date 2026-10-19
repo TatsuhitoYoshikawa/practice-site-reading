@@ -6,6 +6,8 @@ import type { Mode, PracticeHand, Step } from './types'
 export const TIMING_WINDOW_SEC = 0.15
 /** テンポモード開始前のカウント数（拍） */
 const COUNT_IN_BEATS = 4
+/** お手本再生を始めるまでの間（秒） */
+const DEMO_LEAD_IN_SEC = 0.5
 /**
  * テンポモードで和音の1音目を押してから、残りの音を受け付ける時間（秒）。
  * スマホでは同時に押しにくいので、1音ずつ押しても間に合うようにする
@@ -38,6 +40,8 @@ export interface SessionCallbacks {
   onFlash: (midi: number, kind: 'correct' | 'wrong') => void
   /** 和音のうち、押し終えた音（全部そろうまで光らせておく） */
   onHeld: (midis: number[]) => void
+  /** お手本再生で、練習する手の鳴っている音 */
+  onPlaying: (midis: number[]) => void
   /** テンポモードのカウントイン（残り拍数。0 で開始） */
   onCountIn: (remaining: number) => void
   onFinish: (result: SessionResult) => void
@@ -73,7 +77,7 @@ export class PracticeSession {
     this.steps = steps
     this.options = options
     this.callbacks = callbacks
-    const rate = options.mode === 'tempo' ? options.tempoRate : 1
+    const rate = options.mode === 'wait' ? 1 : options.tempoRate
     this.wholeSec = options.wholeNoteSec / rate
     this.targets = steps.flatMap((step, stepIndex) => {
       const midis = notesForHand(step, options.hand)
@@ -103,7 +107,8 @@ export class PracticeSession {
       return
     }
     if (this.options.mode === 'wait') this.startWaitMode()
-    else this.startTempoMode()
+    else if (this.options.mode === 'tempo') this.startTempoMode()
+    else this.startDemoMode()
   }
 
   stop(): void {
@@ -115,7 +120,8 @@ export class PracticeSession {
   press(midi: number): void {
     if (this.finished) return
     if (this.options.mode === 'wait') this.pressWaitMode(midi)
-    else this.pressTempoMode(midi)
+    else if (this.options.mode === 'tempo') this.pressTempoMode(midi)
+    // お手本再生中は判定しない
   }
 
   // ---- 待機モード ----
@@ -163,9 +169,7 @@ export class PracticeSession {
     this.startAt = COUNT_IN_BEATS * beatSec
     this.scheduleAccompaniment(0, this.steps.length, this.startAt, 0)
     this.callbacks.onCountIn(COUNT_IN_BEATS)
-    const lastStep = this.steps[this.steps.length - 1]
-    const lastLength = Math.max(0, ...lastStep.notes.map((n) => n.length))
-    const endAt = (lastStep.time + lastLength) * this.wholeSec + 0.5
+    const endAt = this.endTime()
 
     let cursor = -1
     let countIn = COUNT_IN_BEATS
@@ -247,7 +251,63 @@ export class PracticeSession {
     return Math.max(target.at + TIMING_WINDOW_SEC, target.firstHitAt + CHORD_GRACE_SEC)
   }
 
+  // ---- お手本再生 ----
+
+  /** 両手の音を楽譜どおりに鳴らし、カーソルと練習する手の鍵盤の表示を進める */
+  private startDemoMode(): void {
+    this.startAt = DEMO_LEAD_IN_SEC
+    for (const step of this.steps) {
+      const at = this.startAt + step.time * this.wholeSec
+      for (const note of step.notes) {
+        const velocity = note.hand === this.options.hand ? 0.75 : 0.55
+        scheduleNotes([note.midi], note.length * this.wholeSec, at, velocity)
+      }
+    }
+    const endAt = this.endTime()
+
+    let cursor = -1
+    let playing = ''
+    const tick = () => {
+      if (this.finished) return
+      const elapsed = clockSeconds() - this.startAt
+      let next = cursor
+      while (next + 1 < this.steps.length && this.steps[next + 1].time * this.wholeSec <= elapsed) next++
+      if (next !== cursor && next >= 0) {
+        cursor = next
+        this.callbacks.onCursor(cursor)
+      }
+
+      const now = elapsed / this.wholeSec
+      const sounding = new Set<number>()
+      for (const step of this.steps) {
+        if (step.time > now) break
+        for (const note of step.notes) {
+          if (note.hand === this.options.hand && now < step.time + note.length) sounding.add(note.midi)
+        }
+      }
+      const key = [...sounding].sort().join(',')
+      if (key !== playing) {
+        playing = key
+        this.callbacks.onPlaying([...sounding])
+      }
+
+      if (elapsed > endAt) {
+        this.finish()
+        return
+      }
+      this.rafId = requestAnimationFrame(tick)
+    }
+    this.rafId = requestAnimationFrame(tick)
+  }
+
   // ---- 共通 ----
+
+  /** 最後の音が鳴り終わる時刻（練習用の時計の startAt 基準、秒） */
+  private endTime(): number {
+    const lastStep = this.steps[this.steps.length - 1]
+    const lastLength = Math.max(0, ...lastStep.notes.map((n) => n.length))
+    return (lastStep.time + lastLength) * this.wholeSec + 0.5
+  }
 
   /**
    * 正しい音を押したことを記録する。単音はすぐ鳴らし、和音は全部そろったときにまとめて鳴らす。
@@ -294,6 +354,7 @@ export class PracticeSession {
     const correct = this.targets.filter((t) => t.done && !t.missed).length
     this.callbacks.onHints([])
     this.callbacks.onHeld([])
+    this.callbacks.onPlaying([])
     this.callbacks.onFinish({ total, correct, accuracy: total === 0 ? 1 : correct / total })
   }
 }

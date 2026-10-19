@@ -97,6 +97,7 @@ export function Practice({ score, settings, onExit }: Props) {
   const [wholeNoteSec, setWholeNoteSec] = useState(2.4)
   const [hints, setHints] = useState<Set<number>>(new Set())
   const [held, setHeld] = useState<Set<number>>(new Set())
+  const [playing, setPlaying] = useState<Set<number>>(new Set())
   const [flashes, setFlashes] = useState<Map<number, KeyFlash>>(new Map())
   const [countIn, setCountIn] = useState(0)
   const [running, setRunning] = useState(false)
@@ -229,12 +230,13 @@ export function Practice({ score, settings, onExit }: Props) {
       onCursor: moveCursor,
       onHints: (midis) => setHints(new Set(midis)),
       onHeld: (midis) => setHeld(new Set(midis)),
+      onPlaying: (midis) => setPlaying(new Set(midis)),
       onFlash: flash,
       onCountIn: setCountIn,
       onFinish: (r) => {
         setRunning(false)
         setResult(r)
-        if (score.id !== undefined) {
+        if (score.id !== undefined && settings.mode !== 'demo') {
           db.practiceLogs.add({
             scoreId: score.id,
             hand: settings.hand,
@@ -257,12 +259,14 @@ export function Practice({ score, settings, onExit }: Props) {
     setCountIn(0)
     setHints(new Set())
     setHeld(new Set())
+    setPlaying(new Set())
   }
 
   const handLabel = settings.hand === 'right' ? '右手' : '左手'
+  const rateLabel = `${Math.round(settings.tempoRate * 100)}%`
   const modeLabel = settings.mode === 'wait'
     ? '待機モード'
-    : `テンポモード ${Math.round(settings.tempoRate * 100)}%`
+    : settings.mode === 'tempo' ? `テンポモード ${rateLabel}` : `お手本 ${rateLabel}`
 
   return (
     <div className="practice">
@@ -292,8 +296,14 @@ export function Practice({ score, settings, onExit }: Props) {
       {result && (
         <div className="overlay">
           <div className="result">
-            <p>正答率 <strong>{Math.round(result.accuracy * 100)}%</strong></p>
-            <p>{result.correct} / {result.total} 音</p>
+            {settings.mode === 'demo' ? (
+              <p><strong>おしまい</strong></p>
+            ) : (
+              <>
+                <p>正答率 <strong>{Math.round(result.accuracy * 100)}%</strong></p>
+                <p>{result.correct} / {result.total} 音</p>
+              </>
+            )}
             <div className="actions">
               <button className="primary" onClick={start}>もう一度</button>
               <button onClick={onExit}>戻る</button>
@@ -301,7 +311,7 @@ export function Practice({ score, settings, onExit }: Props) {
           </div>
         </div>
       )}
-      <Keyboard range={range} hints={hints} held={held} flashes={flashes} onPress={(m) => sessionRef.current?.press(m)} />
+      <Keyboard range={range} hints={hints} held={held} playing={playing} flashes={flashes} onPress={(m) => sessionRef.current?.press(m)} />
     </div>
   )
 }

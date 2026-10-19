@@ -108,9 +108,12 @@ export function Setup({ score, initialSettings, onBack, onStart }: Props) {
               <button className={settings.mode === 'tempo' ? 'selected' : ''} onClick={() => update('mode', 'tempo')}>
                 テンポどおり進む
               </button>
+              <button className={settings.mode === 'demo' ? 'selected' : ''} onClick={() => update('mode', 'demo')}>
+                お手本を聴く
+              </button>
             </div>
           </div>
-          {settings.mode === 'tempo' && (
+          {settings.mode !== 'wait' && (
             <label className="field">
               <span>テンポ {Math.round(settings.tempoRate * 100)}%</span>
               <input
@@ -119,13 +122,17 @@ export function Setup({ score, initialSettings, onBack, onStart }: Props) {
               />
             </label>
           )}
-          <label className="field checkbox">
-            <input
-              type="checkbox" checked={settings.accompaniment}
-              onChange={(e) => update('accompaniment', e.target.checked)}
-            />
-            <span>もう片方の手を伴奏として鳴らす</span>
-          </label>
+          {settings.mode === 'demo' ? (
+            <p className="muted">両手の音を楽譜どおりに鳴らします。{HAND_LABEL[settings.hand]}の鍵盤が光るので、弾く位置を目で追えます（判定・記録はしません）。</p>
+          ) : (
+            <label className="field checkbox">
+              <input
+                type="checkbox" checked={settings.accompaniment}
+                onChange={(e) => update('accompaniment', e.target.checked)}
+              />
+              <span>もう片方の手を伴奏として鳴らす</span>
+            </label>
+          )}
           {selectedRange === null && staves.length > 0 && (
             <p className="error">{HAND_LABEL[settings.hand]}に割り当てた譜表に音符がありません</p>
           )}
@@ -133,7 +140,7 @@ export function Setup({ score, initialSettings, onBack, onStart }: Props) {
             <p className="warning">この曲は音域が広いため、スマホでは鍵盤が窮屈になります</p>
           )}
           <button className="primary start" disabled={!analyzed || selectedRange === null} onClick={start}>
-            {analyzed ? '練習をはじめる' : '楽譜を解析中…'}
+            {!analyzed ? '楽譜を解析中…' : settings.mode === 'demo' ? 'お手本を聴く' : '練習をはじめる'}
           </button>
         </section>
       </div>
