@@ -51,6 +51,7 @@ export interface LibraryEntry {
   id: string
   title: string
   composer: string
+  level: string
   license: string
   file: string
 }

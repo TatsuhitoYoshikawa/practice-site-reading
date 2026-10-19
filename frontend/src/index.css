@@ -156,3 +156,6 @@ h2 { font-size: 1rem; margin: 0 0 8px; color: var(--muted); }
 
 /* ボタンを押した瞬間に沈んで見せる（押せたことが分かるように） */
 button:not(:disabled):active, .file-button:active { transform: scale(0.96); filter: brightness(0.92); }
+.level { margin-left: 6px; font-size: 0.7rem; padding: 1px 6px; border-radius: 999px; vertical-align: middle; }
+.level-easy { background: #e8f5e9; color: #2e7d32; }
+.level-mid { background: #fff3e0; color: #b26a00; }

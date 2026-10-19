@@ -107,7 +107,7 @@ export function Home({ onOpen }: Props) {
             {library?.map((entry) => (
               <li key={entry.id}>
                 <button disabled={busy !== null} onClick={() => openLibrary(entry)}>
-                  <span>{entry.title}</span>
+                  <span>{entry.title}<span className={`level level-${entry.level === '初級' ? 'easy' : 'mid'}`}>{entry.level}</span></span>
                   <small>{entry.composer}</small>
                 </button>
               </li>
