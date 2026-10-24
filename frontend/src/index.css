@@ -83,7 +83,11 @@ h2 { font-size: 1rem; margin: 0 0 8px; color: var(--muted); }
 .practice-title { font-weight: bold; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .practice-meta { color: var(--muted); font-size: 0.85rem; }
 
-.score-area { flex: 1; min-height: 0; overflow-y: auto; background: #fff; }
+.score-area {
+  flex: 1; min-height: 0; overflow-y: auto; background: #fff;
+  /* 楽譜は要素の幅いっぱいに描かれるので、切り欠きの分は padding ではなく margin で空ける */
+  margin: 0 var(--safe-right) 0 var(--safe-left);
+}
 
 .overlay {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -95,13 +99,22 @@ h2 { font-size: 1rem; margin: 0 0 8px; color: var(--muted); }
 .result .actions { display: flex; gap: 12px; justify-content: center; }
 
 /* ---- 鍵盤 ---- */
-.keyboard {
-  position: relative; display: flex; flex: none;
-  height: 42vh;
-  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  touch-action: none; user-select: none; -webkit-user-select: none;
-  background: #333;
+:root {
+  /* 全画面時のカメラの切り欠きなどを避ける余白 */
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* 外側は切り欠きを避ける余白（背景はページと同じ色）、内側 .keys が鍵盤そのもの */
+.keyboard {
+  flex: none;
+  height: 42vh;
+  padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  background: var(--bg);
+}
+.keys { position: relative; display: flex; height: 100%; background: #333; }
 .key { touch-action: none; }
 .key.white {
   height: 100%; background: #fff; border: 1px solid #999; border-top: none; border-radius: 0 0 6px 6px;

@@ -69,6 +69,11 @@ export function preloadPiano(low: number, high: number): void {
   notifyStatus()
 }
 
+/** 音声出力が有効になっているか */
+export function audioReady(): boolean {
+  return Tone.getContext().state === 'running'
+}
+
 /** ユーザー操作の中で呼び、音声出力を有効にする（ブラウザの自動再生制限のため） */
 export async function startAudio(): Promise<void> {
   await Tone.start()

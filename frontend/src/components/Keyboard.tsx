@@ -42,26 +42,28 @@ export function Keyboard({ range, hints, held, playing, flashes, onPress }: Prop
 
   return (
     <div className="keyboard">
-      {whites.map((m) => (
-        <div
-          key={m}
-          data-midi={m}
-          className={className(m, 'key white')}
-          style={{ width: `${whiteWidth}%` }}
-          onPointerDown={handlePointerDown(m)}
-        >
-          {m % 12 === 0 && <span className="key-label">{m === 60 ? 'ド(中央)' : 'ド'}</span>}
-        </div>
-      ))}
-      {blacks.map(({ midi, leftWhites }) => (
-        <div
-          key={midi}
-          data-midi={midi}
-          className={className(midi, 'key black')}
-          style={{ left: `${(leftWhites - 0.3) * whiteWidth}%`, width: `${whiteWidth * 0.6}%` }}
-          onPointerDown={handlePointerDown(midi)}
-        />
-      ))}
+      <div className="keys">
+        {whites.map((m) => (
+          <div
+            key={m}
+            data-midi={m}
+            className={className(m, 'key white')}
+            style={{ width: `${whiteWidth}%` }}
+            onPointerDown={handlePointerDown(m)}
+          >
+            {m % 12 === 0 && <span className="key-label">{m === 60 ? 'ド(中央)' : 'ド'}</span>}
+          </div>
+        ))}
+        {blacks.map(({ midi, leftWhites }) => (
+          <div
+            key={midi}
+            data-midi={midi}
+            className={className(midi, 'key black')}
+            style={{ left: `${(leftWhites - 0.3) * whiteWidth}%`, width: `${whiteWidth * 0.6}%` }}
+            onPointerDown={handlePointerDown(midi)}
+          />
+        ))}
+      </div>
     </div>
   )
 }

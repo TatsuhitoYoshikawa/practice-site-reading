@@ -52,6 +52,8 @@ export function Setup({ score, initialSettings, onBack, onStart }: Props) {
     setSettings((s) => ({ ...s, [key]: value }))
 
   const start = async () => {
+    // ボタン操作のうちに音声出力を有効にしておく（待機モードはスタートボタンがないため）
+    import('../lib/audio').then((audio) => audio.startAudio()).catch(() => {})
     const updated = { ...score, staffHands }
     if (score.id !== undefined) await db.scores.update(score.id, { staffHands })
     onStart(updated, settings)

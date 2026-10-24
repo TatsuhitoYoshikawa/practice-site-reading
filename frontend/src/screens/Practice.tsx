@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay'
 import { Keyboard, type KeyFlash } from '../components/Keyboard'
 import { Loading } from '../components/Loading'
-import { pianoStatus, preloadPiano, startAudio, subscribePianoStatus } from '../lib/audio'
+import { audioReady, pianoStatus, preloadPiano, startAudio, subscribePianoStatus } from '../lib/audio'
 import { db } from '../lib/db'
 import { keyboardRange } from '../lib/keyboard'
 import { buildSteps, getBpm, noteRange, wholeNoteSeconds } from '../lib/score'
@@ -79,19 +79,26 @@ function fittingZoom(osmd: OpenSheetMusicDisplay, viewHeight: number): number {
   return Math.min(BASE_ZOOM, Math.max(MIN_ZOOM, (osmd.Zoom * available) / tallest))
 }
 
-/** 表示枠に合わせて倍率を変え、描き直す（カーソル位置は呼び出し側で戻す） */
-function renderToFit(osmd: OpenSheetMusicDisplay, viewHeight: number): void {
-  const zoom = fittingZoom(osmd, viewHeight)
-  if (Math.abs(zoom - osmd.Zoom) < 0.02) return
+/**
+ * 表示枠に合わせて倍率を変え、描き直す（カーソル位置は呼び出し側で戻す）。
+ * 幅が変わったとき（全画面・回転）は段の折り返しも変わるので、force で描き直す
+ * @returns 描き直したか
+ */
+function renderToFit(osmd: OpenSheetMusicDisplay, container: HTMLElement, force = false): boolean {
+  const zoom = fittingZoom(osmd, container.clientHeight)
+  if (!force && Math.abs(zoom - osmd.Zoom) < 0.02) return false
   osmd.Zoom = zoom
   osmd.render()
   osmd.cursor.show()
+  return true
 }
 
 export function Practice({ score, settings, onExit }: Props) {
   const scoreRef = useRef<HTMLDivElement>(null)
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null)
   const cursorIndexRef = useRef(0)
+  /** 楽譜を描いたときの表示枠の幅 */
+  const renderedWidthRef = useRef(0)
   const sessionRef = useRef<PracticeSession | null>(null)
   const [steps, setSteps] = useState<Step[] | null>(null)
   const [wholeNoteSec, setWholeNoteSec] = useState(2.4)
@@ -125,7 +132,8 @@ export function Practice({ score, settings, onExit }: Props) {
       osmd.Zoom = BASE_ZOOM
       osmd.render()
       osmd.cursor.show()
-      renderToFit(osmd, container.clientHeight)
+      renderToFit(osmd, container)
+      renderedWidthRef.current = container.clientWidth
       osmdRef.current = osmd
       cursorIndexRef.current = 0
       scrollToCursor(osmd, container, score.staffHands, settings.hand)
@@ -154,7 +162,12 @@ export function Practice({ score, settings, onExit }: Props) {
         const container = scoreRef.current
         if (!osmd || !container) return
         const index = cursorIndexRef.current
-        renderToFit(osmd, container.clientHeight)
+        const widthChanged = container.clientWidth !== renderedWidthRef.current
+        if (!renderToFit(osmd, container, widthChanged)) {
+          scrollToCursor(osmd, container, score.staffHands, settings.hand)
+          return
+        }
+        renderedWidthRef.current = container.clientWidth
         osmd.cursor.reset()
         for (let i = 0; i < index; i++) osmd.cursor.next()
         scrollToCursor(osmd, container, score.staffHands, settings.hand)
@@ -218,9 +231,14 @@ export function Practice({ score, settings, onExit }: Props) {
     }, FLASH_MS)
   }
 
-  const start = async () => {
+  /**
+   * 練習を始める。
+   * @param withAudio ボタン操作から呼ぶときは true（このときに音声出力を有効にする）。
+   *   待機モードの自動開始では false にし、最初の鍵盤タップで有効にする
+   */
+  const start = async (withAudio = true) => {
     if (!steps) return
-    await startAudio()
+    if (withAudio) await startAudio()
     sessionRef.current?.stop()
     moveCursor(0)
     setResult(null)
@@ -253,6 +271,22 @@ export function Practice({ score, settings, onExit }: Props) {
     session.start()
   }
 
+  // 待機モードはスタートボタンなしで、楽譜の準備ができたらすぐ始める
+  useEffect(() => {
+    if (settings.mode === 'wait' && steps && !sessionRef.current) start(false)
+    // start は描画ごとに作り直されるが、ここでは楽譜の準備ができたときに一度だけ呼べばよい
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [steps, settings.mode])
+
+  const press = (midi: number) => {
+    if (audioReady()) {
+      sessionRef.current?.press(midi)
+      return
+    }
+    // 最初のタップで音声出力を有効にしてから判定する
+    startAudio().then(() => sessionRef.current?.press(midi))
+  }
+
   const stop = () => {
     sessionRef.current?.stop()
     setRunning(false)
@@ -281,13 +315,13 @@ export function Practice({ score, settings, onExit }: Props) {
         {document.fullscreenEnabled && (
           <button onClick={toggleFullscreen}>{fullscreen ? '全画面を終了' : '全画面'}</button>
         )}
-        {running
+        {settings.mode !== 'wait' && (running
           ? <button onClick={stop}>停止</button>
           : (
-            <button className="primary" onClick={start} disabled={!steps}>
+            <button className="primary" onClick={() => start()} disabled={!steps}>
               {!steps ? '準備中…' : result ? 'もう一度' : 'スタート'}
             </button>
-          )}
+          ))}
       </header>
       <div className="score-area" ref={scoreRef} />
       {!steps && !error && <Loading overlay message="楽譜を表示中…" />}
@@ -305,13 +339,13 @@ export function Practice({ score, settings, onExit }: Props) {
               </>
             )}
             <div className="actions">
-              <button className="primary" onClick={start}>もう一度</button>
+              <button className="primary" onClick={() => start()}>もう一度</button>
               <button onClick={onExit}>戻る</button>
             </div>
           </div>
         </div>
       )}
-      <Keyboard range={range} hints={hints} held={held} playing={playing} flashes={flashes} onPress={(m) => sessionRef.current?.press(m)} />
+      <Keyboard range={range} hints={hints} held={held} playing={playing} flashes={flashes} onPress={press} />
     </div>
   )
 }
