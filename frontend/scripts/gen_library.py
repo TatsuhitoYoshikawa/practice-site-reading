@@ -2,7 +2,7 @@
 
 使い方: python3 scripts/gen_library.py
 音符は "音名[#|b]オクターブ:長さ" で書く（例: C4, F#4:h, Bb3:q.）。
-長さ: w=全, h=2分, q=4分, e=8分（省略時は q）。末尾の "." は付点。
+長さ: w=全, h=2分, q=4分, e=8分, s=16分（省略時は q）。末尾の "." は付点。
 和音は "+" でつなぐ（例: C4+E4+G4:h）。休符は "R:長さ"。小節は "|" で区切る。
 """
 import json
@@ -11,8 +11,8 @@ import re
 from xml.sax.saxutils import escape
 
 DIV = 4  # 4分音符あたりの divisions
-LEN = {"w": 16, "h": 8, "q": 4, "e": 2}
-TYPE = {"w": "whole", "h": "half", "q": "quarter", "e": "eighth"}
+LEN = {"w": 16, "h": 8, "q": 4, "e": 2, "s": 1}
+TYPE = {"w": "whole", "h": "half", "q": "quarter", "e": "eighth", "s": "16th"}
 STEPS = "CDEFGAB"
 SEMITONE = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 # 調号（シャープ/フラットの数）で変化する音の順番
@@ -217,6 +217,187 @@ SONGS.append({
     # 前半16小節のあと、右手を1オクターブ上げてくり返す
     "rh": " | ".join(_ETUDE_RH + [transpose_octave(m, 1) for m in _ETUDE_RH[:15]] + ["G5+B5+D6:w"]),
     "lh": " | ".join(_ETUDE_LH + _ETUDE_LH[:15] + ["G1+G2+D3:w"]),
+})
+
+
+# ---- 初級の追加曲（民謡・パブリックドメイン。左手はこのアプリで付けた伴奏） ----
+SONGS += [
+    {
+        "id": "frere-jacques",
+        "title": "かねがなる（フレール・ジャック）",
+        "composer": "フランス民謡",
+        "tempo": 100,
+        "rh": "C4 D4 E4 C4 | C4 D4 E4 C4 | E4 F4 G4:h | E4 F4 G4:h"
+              " | G4:e A4:e G4:e F4:e E4 C4 | G4:e A4:e G4:e F4:e E4 C4 | C4 G3 C4:h | C4 G3 C4:h",
+        "lh": "C3:w | C3:w | C3:w | C3:w | C3:h G2:h | C3:h G2:h | C3:w | C3:w",
+    },
+    {
+        "id": "london-bridge",
+        "title": "ロンドン橋",
+        "composer": "イギリス民謡",
+        "tempo": 100,
+        "rh": "G4:q. A4:e G4 F4 | E4 F4 G4:h | D4 E4 F4:h | E4 F4 G4:h"
+              " | G4:q. A4:e G4 F4 | E4 F4 G4:h | D4:h G4:h | E4 C4:h.",
+        "lh": "C3:w | C3:w | G2:w | C3:w | C3:w | C3:w | G2:w | C3:w",
+    },
+    {
+        "id": "au-clair-de-la-lune",
+        "title": "月の光に",
+        "composer": "フランス民謡",
+        "tempo": 100,
+        "rh": "C4 C4 C4 D4 | E4:h D4:h | C4 E4 D4 D4 | C4:w"
+              " | C4 C4 C4 D4 | E4:h D4:h | C4 E4 D4 D4 | C4:w"
+              " | D4 D4 D4 D4 | A3:h A3:h | D4 C4 B3 A3 | G3:w"
+              " | C4 C4 C4 D4 | E4:h D4:h | C4 E4 D4 D4 | C4:w",
+        "lh": "C3:w | C3:h G2:h | C3:h G2:h | C3:w | C3:w | C3:h G2:h | C3:h G2:h | C3:w"
+              " | G2:w | D3:w | D3:w | G2:w | C3:w | C3:h G2:h | C3:h G2:h | C3:w",
+    },
+    {
+        "id": "hot-cross-buns",
+        "title": "ホット・クロス・バンズ",
+        "composer": "イギリス民謡",
+        "tempo": 100,
+        "rh": "E4 D4 C4:h | E4 D4 C4:h | C4:e C4:e C4:e C4:e D4:e D4:e D4:e D4:e | E4 D4 C4:h",
+        "lh": "C3:w | C3:w | C3:h G2:h | C3:w",
+    },
+]
+
+# ---- 中級の追加曲 ----
+
+# メヌエット ト長調（C. ペツォールト、伝 J. S. バッハ。パブリックドメイン）。左手はこのアプリで付けた伴奏（CC0）
+_MINUET_RH = [
+    "D5 G4:e A4:e B4:e C5:e", "D5 G4 G4", "E5 C5:e D5:e E5:e F#5:e", "G5 G4 G4",
+    "C5 D5:e C5:e B4:e A4:e", "B4 C5:e B4:e A4:e G4:e", "F#4 G4:e A4:e B4:e G4:e", "A4:h.",
+    "D5 G4:e A4:e B4:e C5:e", "D5 G4 G4", "E5 C5:e D5:e E5:e F#5:e", "G5 G4 G4",
+    "C5 D5:e C5:e B4:e A4:e", "B4 C5:e B4:e A4:e G4:e", "A4 B4:e A4:e G4:e F#4:e", "G4:h.",
+]
+_MINUET_LH_CHORD = {"G": "G2:h D3", "C": "C3:h E3", "Am": "A2:h E3", "D": "D3:h F#3"}
+_MINUET_LH = [_MINUET_LH_CHORD[c] for c in "G G C G Am G D D G G C G Am G D G".split()]
+_MINUET_LH[7] = "D3:h."
+_MINUET_LH[15] = "G2:h."
+SONGS.append({
+    "id": "minuet-in-g",
+    "title": "メヌエット ト長調",
+    "composer": "C. ペツォールト（伴奏：このアプリ）",
+    "level": "中級",
+    "license": "Public Domain（伴奏は CC0）",
+    "tempo": 100,
+    "time": (3, 4),
+    "fifths": 1,
+    # 原曲どおり16小節をくり返す
+    "rh": " | ".join(_MINUET_RH * 2),
+    "lh": " | ".join(_MINUET_LH * 2),
+})
+
+# 左手のメロディ（このアプリのオリジナル、CC0）。旋律は左手、右手は裏拍の和音
+_LH_MELODY_CHORDS = {
+    "C": "E4+G4+C5", "F": "F4+A4+C5", "G": "D4+G4+B4", "Am": "E4+A4+C5",
+    "Dm": "F4+A4+D5", "G7": "D4+F4+B4", "Em": "E4+G4+B4",
+}
+_LH_MELODY_HARMONY = "C F G C Am Dm G7 C C Em F C F G G7 C".split()
+_LH_MELODY = [
+    "C3 E3 G3 E3", "F3 A3 C4 A3", "G3 F3 E3 D3", "C3:h G2:h",
+    "A2 C3 E3 A3", "F3 E3 D3 F3", "G3:q. F3:e E3 D3", "C3:w",
+    "E3:e F3:e G3 C4 G3", "B2 E3 G3 B3", "A3 G3 F3 A3", "G3:h E3:h",
+    "F3 A3 C4 F3", "G3 B3 D4 B3", "F3:q. E3:e D3 B2", "C3:w",
+]
+_LH_MELODY_RH = [
+    f"{_LH_MELODY_CHORDS[c]}:w" if i % 4 == 3 else f"R:q {_LH_MELODY_CHORDS[c]} R:q {_LH_MELODY_CHORDS[c]}"
+    for i, c in enumerate(_LH_MELODY_HARMONY)
+]
+SONGS.append({
+    "id": "left-hand-melody",
+    "title": "左手のメロディ",
+    "composer": "オリジナル（このアプリ用）",
+    "level": "中級",
+    "license": "CC0",
+    "tempo": 90,
+    "rh": " | ".join(_LH_MELODY_RH),
+    "lh": " | ".join(_LH_MELODY),
+})
+
+# ---- 上級 ----
+
+# エリーゼのために（L. v. ベートーヴェン、パブリックドメイン）。冒頭の主題部分をこのアプリで短くまとめた（CC0）
+_ELISE_LH_AM = "A2:s E3:s A3:s R:s R:e"
+_ELISE_LH_E = "E2:s E3:s G#3:s R:s R:e"
+_ELISE_THEME = [  # 主題（2〜8小節目）: (右手, 左手)
+    ("E5:s D#5:s E5:s B4:s D5:s C5:s", "R:q."),
+    ("A4:e R:s C4:s E4:s A4:s", _ELISE_LH_AM),
+    ("B4:e R:s E4:s G#4:s B4:s", _ELISE_LH_E),
+    ("C5:e R:s E4:s E5:s D#5:s", _ELISE_LH_AM),
+    ("E5:s D#5:s E5:s B4:s D5:s C5:s", "R:q."),
+    ("A4:e R:s C4:s E4:s A4:s", _ELISE_LH_AM),
+    ("B4:e R:s E4:s C5:s B4:s", _ELISE_LH_E),
+]
+_ELISE = (
+    [("R:q E5:s D#5:s", "R:q.")]
+    + _ELISE_THEME
+    + [("A4:e R:e E5:s D#5:s", _ELISE_LH_AM)]
+    + _ELISE_THEME
+    + [
+        ("A4:e R:s B4:s C5:s D5:s", _ELISE_LH_AM),
+        ("E5:e. G4:s F5:s E5:s", "C3:s G3:s C4:s R:s R:e"),
+        ("D5:e. F4:s E5:s D5:s", "G2:s G3:s B3:s R:s R:e"),
+        ("C5:e. E4:s D5:s C5:s", _ELISE_LH_AM),
+        ("B4:e R:s E4:s E5:s D#5:s", _ELISE_LH_E),
+    ]
+    + _ELISE_THEME
+    + [("A4:q.", "A2+A3:q.")]
+)
+SONGS.append({
+    "id": "fur-elise",
+    "title": "エリーゼのために（冒頭）",
+    "composer": "L. v. ベートーヴェン（編曲：このアプリ）",
+    "level": "上級",
+    "license": "Public Domain（編曲は CC0）",
+    "tempo": 60,
+    "time": (3, 8),
+    "rh": " | ".join(r for r, _ in _ELISE),
+    "lh": " | ".join(l for _, l in _ELISE),
+})
+
+# アルペジオのエチュード（このアプリのオリジナル、CC0）。ニ長調。
+# 前半は右手のアルペジオと左手のオクターブ、後半は右手の和音と左手のアルペジオ
+_ARP_RH = {
+    "D": "D4:e F#4:e A4:e D5:e F#5:e D5:e A4:e F#4:e",
+    "Bm": "D4:e F#4:e B4:e D5:e F#5:e D5:e B4:e F#4:e",
+    "G": "D4:e G4:e B4:e D5:e G5:e D5:e B4:e G4:e",
+    "A7": "C#4:e E4:e G4:e A4:e C#5:e A4:e G4:e E4:e",
+    "F#m": "C#4:e F#4:e A4:e C#5:e F#5:e C#5:e A4:e F#4:e",
+    "Em": "E4:e G4:e B4:e E5:e G5:e E5:e B4:e G4:e",
+}
+_ARP_LH_OCTAVES = {
+    "D": "D2+D3:h A1+A2:h", "Bm": "B1+B2:h F#2+F#3:h", "G": "G1+G2:h D2+D3:h",
+    "A7": "A1+A2:h E2+E3:h", "F#m": "F#1+F#2:h C#2+C#3:h", "Em": "E1+E2:h B1+B2:h",
+}
+_ARP_RH_CHORDS = {
+    "D": "F#5+A5+D6", "Bm": "F#5+B5+D6", "G": "G5+B5+D6",
+    "A7": "E5+G5+A5+C#6", "F#m": "F#5+A5+C#6", "Em": "E5+G5+B5",
+}
+_ARP_LH = {
+    "D": "D2:e A2:e D3:e F#3:e A3:e F#3:e D3:e A2:e",
+    "Bm": "B1:e F#2:e B2:e D3:e F#3:e D3:e B2:e F#2:e",
+    "G": "G1:e D2:e G2:e B2:e D3:e B2:e G2:e D2:e",
+    "A7": "A1:e E2:e A2:e C#3:e G3:e C#3:e A2:e E2:e",
+    "F#m": "F#1:e C#2:e F#2:e A2:e C#3:e A2:e F#2:e C#2:e",
+    "Em": "E1:e B1:e E2:e G2:e B2:e G2:e E2:e B1:e",
+}
+_ARP_HARMONY = "D Bm G A7 D G A7 D F#m Bm Em A7 D G A7 D".split()
+SONGS.append({
+    "id": "arpeggio-etude",
+    "title": "アルペジオのエチュード",
+    "composer": "オリジナル（このアプリ用）",
+    "level": "上級",
+    "license": "CC0",
+    "tempo": 72,
+    "fifths": 2,
+    "rh": " | ".join([_ARP_RH[c] for c in _ARP_HARMONY]
+                     + [f"{_ARP_RH_CHORDS[c]}:h {_ARP_RH_CHORDS[c]} {_ARP_RH_CHORDS[c]}" for c in _ARP_HARMONY[:-1]]
+                     + ["F#5+A5+D6:w"]),
+    "lh": " | ".join([_ARP_LH_OCTAVES[c] for c in _ARP_HARMONY]
+                     + [_ARP_LH[c] for c in _ARP_HARMONY[:-1]]
+                     + ["D2+A2+D3:w"]),
 })
 
 

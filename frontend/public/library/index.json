@@ -54,5 +54,69 @@
     "level": "中級",
     "license": "CC0",
     "file": "chord-etude.musicxml"
+  },
+  {
+    "id": "frere-jacques",
+    "title": "かねがなる（フレール・ジャック）",
+    "composer": "フランス民謡",
+    "level": "初級",
+    "license": "Public Domain",
+    "file": "frere-jacques.musicxml"
+  },
+  {
+    "id": "london-bridge",
+    "title": "ロンドン橋",
+    "composer": "イギリス民謡",
+    "level": "初級",
+    "license": "Public Domain",
+    "file": "london-bridge.musicxml"
+  },
+  {
+    "id": "au-clair-de-la-lune",
+    "title": "月の光に",
+    "composer": "フランス民謡",
+    "level": "初級",
+    "license": "Public Domain",
+    "file": "au-clair-de-la-lune.musicxml"
+  },
+  {
+    "id": "hot-cross-buns",
+    "title": "ホット・クロス・バンズ",
+    "composer": "イギリス民謡",
+    "level": "初級",
+    "license": "Public Domain",
+    "file": "hot-cross-buns.musicxml"
+  },
+  {
+    "id": "minuet-in-g",
+    "title": "メヌエット ト長調",
+    "composer": "C. ペツォールト（伴奏：このアプリ）",
+    "level": "中級",
+    "license": "Public Domain（伴奏は CC0）",
+    "file": "minuet-in-g.musicxml"
+  },
+  {
+    "id": "left-hand-melody",
+    "title": "左手のメロディ",
+    "composer": "オリジナル（このアプリ用）",
+    "level": "中級",
+    "license": "CC0",
+    "file": "left-hand-melody.musicxml"
+  },
+  {
+    "id": "fur-elise",
+    "title": "エリーゼのために（冒頭）",
+    "composer": "L. v. ベートーヴェン（編曲：このアプリ）",
+    "level": "上級",
+    "license": "Public Domain（編曲は CC0）",
+    "file": "fur-elise.musicxml"
+  },
+  {
+    "id": "arpeggio-etude",
+    "title": "アルペジオのエチュード",
+    "composer": "オリジナル（このアプリ用）",
+    "level": "上級",
+    "license": "CC0",
+    "file": "arpeggio-etude.musicxml"
   }
 ]

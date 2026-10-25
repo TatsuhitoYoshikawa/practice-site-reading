@@ -11,12 +11,37 @@ interface Props {
 }
 
 const LIBRARY_BASE = `${import.meta.env.BASE_URL}library/`
+const LEVELS = [
+  { name: '初級', className: 'easy' },
+  { name: '中級', className: 'mid' },
+  { name: '上級', className: 'hard' },
+]
+/** 開いている難易度をブラウザに覚えておくキー（練習から戻ったときに同じ状態で表示する） */
+const OPEN_LEVELS_KEY = 'openLevels'
+
+function loadOpenLevels(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(OPEN_LEVELS_KEY) ?? '[]')
+  } catch {
+    return []
+  }
+}
 
 export function Home({ onOpen }: Props) {
   const [library, setLibrary] = useState<LibraryEntry[] | null>(null)
   const [busy, setBusy] = useState<{ message: string; detail?: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [url, setUrl] = useState('')
+  const [openLevels, setOpenLevels] = useState<string[]>(loadOpenLevels)
+  const toggleLevel = (name: string, open: boolean) => {
+    const next = open ? [...new Set([...openLevels, name])] : openLevels.filter((n) => n !== name)
+    setOpenLevels(next)
+    try {
+      localStorage.setItem(OPEN_LEVELS_KEY, JSON.stringify(next))
+    } catch {
+      // 保存できない環境（プライベートモードなど）では覚えない
+    }
+  }
   const scores = useLiveQuery(() => db.scores.orderBy('createdAt').reverse().toArray(), [])
 
   useEffect(() => {
@@ -103,16 +128,36 @@ export function Home({ onOpen }: Props) {
         <section>
           <h2>ライブラリ</h2>
           {library === null && <Loading message="曲の一覧を読み込み中…" />}
-          <ul className="score-list">
-            {library?.map((entry) => (
-              <li key={entry.id}>
-                <button disabled={busy !== null} onClick={() => openLibrary(entry)}>
-                  <span>{entry.title}<span className={`level level-${entry.level === '初級' ? 'easy' : 'mid'}`}>{entry.level}</span></span>
-                  <small>{entry.composer}</small>
-                </button>
-              </li>
-            ))}
-          </ul>
+          {library && LEVELS.map((level) => {
+            const entries = library.filter((entry) => entry.level === level.name)
+            if (entries.length === 0) return null
+            return (
+              <details
+                key={level.name}
+                className="level-group"
+                open={openLevels.includes(level.name)}
+                onToggle={(e) => {
+                  const open = e.currentTarget.open
+                  if (open !== openLevels.includes(level.name)) toggleLevel(level.name, open)
+                }}
+              >
+                <summary>
+                  <span className={`level level-${level.className}`}>{level.name}</span>
+                  <small>{entries.length}曲</small>
+                </summary>
+                <ul className="score-list">
+                  {entries.map((entry) => (
+                    <li key={entry.id}>
+                      <button disabled={busy !== null} onClick={() => openLibrary(entry)}>
+                        <span>{entry.title}</span>
+                        <small>{entry.composer}</small>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )
+          })}
         </section>
         <section>
           <h2>じぶんの楽譜</h2>

@@ -126,6 +126,8 @@ export function Practice({ score, settings, onExit }: Props) {
       drawComposer: false,
       drawPartNames: false,
       drawingParameters: 'compacttight',
+      // 8分・16分音符を連桁でつなぐ（楽譜データに連桁の指定がなくても読みやすくする）
+      autoBeam: true,
     })
     osmd.load(score.musicXml).then(() => {
       if (cancelled) return
