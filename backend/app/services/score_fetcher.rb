@@ -15,12 +15,16 @@ class ScoreFetcher
   MAX_BYTES = 10 * 1024 * 1024
   MAX_REDIRECTS = 3
   TIMEOUT_SEC = 10
+  # リダイレクトを含めた取得全体の制限時間（少しずつ送り続けられてもサーバーを占有されないように）
+  TOTAL_TIMEOUT_SEC = 20
 
   BLOCKED_NETWORKS = %w[
     0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12
     192.0.0.0/24 192.168.0.0/16 198.18.0.0/15 224.0.0.0/4 240.0.0.0/4
-    ::/128 ::1/128 fc00::/7 fe80::/10 ff00::/8
+    ::/96 fc00::/7 fe80::/10 ff00::/8 100::/64 2001:db8::/32
+    64:ff9b::/96 64:ff9b:1::/48 2002::/16 2001::/32
   ].map { |cidr| IPAddr.new(cidr) }
+  # ::/96 は未指定・ループバック・IPv4 互換アドレス。64:ff9b::/96 などは IPv4 アドレスを埋め込める変換用の範囲
 
   class << self
     attr_writer :resolver
@@ -31,8 +35,8 @@ class ScoreFetcher
     end
   end
 
-  def self.call(url, resolver: self.resolver)
-    new(resolver).fetch(url)
+  def self.call(url, resolver: self.resolver, total_timeout: TOTAL_TIMEOUT_SEC)
+    new(resolver, total_timeout).fetch(url)
   end
 
   def self.resolve(host)
@@ -41,11 +45,13 @@ class ScoreFetcher
     raise Error, "ホスト名を解決できませんでした"
   end
 
-  def initialize(resolver)
+  def initialize(resolver, total_timeout)
     @resolver = resolver
+    @total_timeout = total_timeout
   end
 
   def fetch(url)
+    @deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + @total_timeout
     body, final_uri = download(parse_uri(url))
     detect(body, File.basename(final_uri.path.to_s))
   end
@@ -68,8 +74,8 @@ class ScoreFetcher
     http = Net::HTTP.new(uri.host, uri.port, nil)
     http.ipaddr = ip
     http.use_ssl = uri.scheme == "https"
-    http.open_timeout = TIMEOUT_SEC
-    http.read_timeout = TIMEOUT_SEC
+    http.open_timeout = [ TIMEOUT_SEC, remaining_time ].min
+    http.read_timeout = [ TIMEOUT_SEC, remaining_time ].min
 
     http.request(Net::HTTP::Get.new(uri)) do |response|
       case response
@@ -86,6 +92,13 @@ class ScoreFetcher
     raise Error, "取得がタイムアウトしました"
   rescue SystemCallError, OpenSSL::SSL::SSLError, IOError => e
     raise Error, "接続できませんでした（#{e.class.name}）"
+  end
+
+  # 制限時間の残り（秒）。過ぎていたらエラーにする
+  def remaining_time
+    remaining = @deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    raise Error, "取得がタイムアウトしました" if remaining <= 0
+    remaining
   end
 
   def ensure_allowed_source(uri)
@@ -110,6 +123,7 @@ class ScoreFetcher
     response.read_body do |chunk|
       body << chunk
       raise Error, "ファイルが大きすぎます（上限10MB）" if body.bytesize > MAX_BYTES
+      remaining_time
     end
     body.force_encoding(Encoding::BINARY)
   end
@@ -150,7 +164,10 @@ class ScoreFetcher
     entry = rootfile_entry(zip)
     raise Error, "MXL ファイルの中に楽譜が見つかりません" unless entry
     raise Error, "ファイルが大きすぎます（上限10MB）" if entry.size > MAX_BYTES
-    to_utf8(entry.get_input_stream.read.b)
+    # 申告サイズは偽れるので、展開しながら上限を超えたら打ち切る（展開すると巨大になるファイル対策）
+    content = entry.get_input_stream { |stream| stream.read(MAX_BYTES + 1) }.to_s
+    raise Error, "ファイルが大きすぎます（上限10MB）" if content.bytesize > MAX_BYTES
+    to_utf8(content.b)
   rescue Zip::Error
     raise Error, "MXL ファイルを展開できませんでした"
   end

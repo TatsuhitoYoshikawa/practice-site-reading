@@ -133,4 +133,61 @@ class ScoreFetcherTest < ActiveSupport::TestCase
     error = assert_raises(ScoreFetcher::Error) { fetch("https://raw.githubusercontent.com/user/repo/main/a") }
     assert_match "このサイトからは取り込めません", error.message
   end
+
+  test "許可したホストでも 443 以外のポートには接続しない" do
+    error = assert_raises(ScoreFetcher::Error) { fetch("https://raw.githubusercontent.com:8443/user/repo/main/a.xml") }
+    assert_match "このサイトからは取り込めません", error.message
+    assert_not_requested :any, /.*/
+  end
+
+  test "パスの . や .. で許可したパスの外を指す URL は拒否する" do
+    [
+      "https://www.ibiblio.org/mutopia/../secret.mid",
+      "https://www.ibiblio.org/mutopia/%2e%2e/secret.mid",
+      "https://www.ibiblio.org/mutopia/%2E%2E/secret.mid",
+      "https://www.ibiblio.org/mutopia/./../secret.mid",
+      "https://github.com/user/repo/raw/../../login",
+      "https://kern.humdrum.org/cgi-bin/ksdata/../../etc",
+      "https://www.ibiblio.org/mutopia/%5C..%5Csecret.mid"
+    ].each do |url|
+      error = assert_raises(ScoreFetcher::Error, url) { fetch(url) }
+      assert_match "このサイトからは取り込めません", error.message, url
+    end
+    assert_not_requested :any, /.*/
+  end
+
+  test "IPv4 アドレスを埋め込んだ IPv6 アドレスも拒否する" do
+    [ "::127.0.0.1", "::a00:1", "64:ff9b::7f00:1", "2002:7f00:1::", "2001:0:7f00:1::", "::", "::1" ].each do |ip|
+      error = assert_raises(ScoreFetcher::Error, ip) do
+        fetch("https://raw.githubusercontent.com/user/repo/main/a.xml", resolver: ->(_) { [ ip ] })
+      end
+      assert_match "このアドレス", error.message, ip
+    end
+  end
+
+  test "公開アドレスとプライベートアドレスの両方に解決される場合も拒否する" do
+    error = assert_raises(ScoreFetcher::Error) do
+      fetch("https://raw.githubusercontent.com/user/repo/main/a.xml", resolver: ->(_) { [ "93.184.216.34", "10.0.0.5" ] })
+    end
+    assert_match "このアドレス", error.message
+  end
+
+  test "取得全体の制限時間を過ぎたら打ち切る" do
+    stub_request(:get, "https://raw.githubusercontent.com/user/repo/main/a.xml").to_return(body: MUSICXML)
+    error = assert_raises(ScoreFetcher::Error) do
+      ScoreFetcher.call("https://raw.githubusercontent.com/user/repo/main/a.xml", resolver: PUBLIC_RESOLVER, total_timeout: 0)
+    end
+    assert_match "タイムアウト", error.message
+  end
+
+  test "展開すると上限を超える MXL は、申告サイズを偽っていても打ち切る" do
+    huge = "<score-partwise>" + " " * ScoreFetcher::MAX_BYTES
+    zip = build_mxl("score.xml" => huge)
+    assert zip.bytesize < 100_000, "圧縮後は小さいこと"
+    # ローカルファイルヘッダと中央ディレクトリの「展開後のサイズ」を小さく書き換える
+    tampered = zip.b.gsub([ huge.bytesize ].pack("V"), [ 10 ].pack("V"))
+    stub_request(:get, "https://raw.githubusercontent.com/user/repo/main/a.mxl").to_return(body: tampered)
+    error = assert_raises(ScoreFetcher::Error) { fetch("https://raw.githubusercontent.com/user/repo/main/a.mxl") }
+    assert_match "大きすぎます", error.message
+  end
 end

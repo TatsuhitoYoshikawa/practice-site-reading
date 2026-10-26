@@ -8,11 +8,21 @@ class ScoreSource
     @all ||= JSON.parse(Rails.root.join("config/score_sources.json").read).map { |attrs| new(attrs) }.freeze
   end
 
-  # https で、許可したホストとパスに一致する URI か
+  # https（443番ポート）で、許可したホストとパスに一致する URI か
   def self.allowed?(uri)
-    return false unless uri.scheme == "https" && uri.userinfo.nil?
+    return false unless uri.scheme == "https" && uri.userinfo.nil? && uri.port == 443
+    path = uri.path.to_s
+    return false if dot_segments?(path)
     host = uri.host.to_s.downcase
-    all.any? { |source| source.locations.any? { |l| l.host == host && l.path.match?(uri.path.to_s) } }
+    all.any? { |source| source.locations.any? { |l| l.host == host && l.path.match?(path) } }
+  end
+
+  # "." や ".." の区間を含むパス（%2e などの書き方も含む）。許可したパスの外を指せるので受け付けない
+  def self.dot_segments?(path)
+    decoded = URI.decode_www_form_component(path.gsub("+", "%2B"))
+    decoded.include?("\\") || decoded.split("/").any? { |segment| segment == "." || segment == ".." }
+  rescue ArgumentError
+    true
   end
 
   def initialize(attrs)
