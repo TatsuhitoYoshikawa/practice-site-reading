@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Loading } from '../components/Loading'
+import { ABOUT } from '../content/about'
 import { fetchScoreFromUrl } from '../lib/api'
 import { db } from '../lib/db'
 import { SCORE_SOURCES } from '../lib/scoreSources'
@@ -121,7 +122,7 @@ export function Home({ onOpen }: Props) {
 
   return (
     <div className="home">
-      <h1>譜読みれんしゅう</h1>
+      <h1>譜読みれんしゅう <small className="tagline">ピアノの楽譜を読む練習アプリ</small></h1>
       {error && <p className="error">{error}</p>}
       {busy && <Loading overlay message={busy.message} detail={busy.detail} />}
       <div className="columns">
@@ -208,6 +209,21 @@ export function Home({ onOpen }: Props) {
           </ul>
         </section>
       </div>
+      <section className="about">
+        <h2>このアプリについて</h2>
+        <p>{ABOUT.intro}</p>
+        <h3>特徴</h3>
+        <ul>{ABOUT.features.map((f) => <li key={f}>{f}</li>)}</ul>
+        <h3>使い方</h3>
+        <ol>{ABOUT.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+        <h3>よくある質問</h3>
+        {ABOUT.faq.map(({ q, a }) => (
+          <details key={q} className="faq">
+            <summary>{q}</summary>
+            <p>{a}</p>
+          </details>
+        ))}
+      </section>
     </div>
   )
 }

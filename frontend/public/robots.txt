@@ -1,0 +1,5 @@
+# 検索エンジン・AI 検索のクローラーを含め、すべて許可する
+User-agent: *
+Allow: /
+
+Sitemap: https://practice-site-reading.onrender.com/sitemap.xml

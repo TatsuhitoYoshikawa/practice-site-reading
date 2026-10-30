@@ -133,6 +133,14 @@ URL指定の楽譜ファイル ───────────┼──> Music
 | GET | /api/omr_jobs/:id | 状態（queued/processing/done/failed）と、完了時は MusicXML |
 | POST | /api/score_fetches | `{ url }` を受け取り楽譜を中継取得 → `{ format: "musicxml" \| "midi", content, filename }`（midi は Base64）。失敗時は 422 `{ error }` |
 
+## 7.5 検索エンジン・AI 検索への対応
+- タイトル・説明・OGP・canonical・構造化データ（WebApplication / FAQPage）を index.html に埋め込む
+- JavaScript を実行しないクローラー（多くの AI 検索）向けに、説明・特徴・使い方・収録曲・よくある質問を
+  index.html に静的に書き出す。同じ内容をホーム画面の「このアプリについて」にも表示する
+- 文章は `frontend/src/content/about.ts` の1か所で管理し、ビルド時（`vite.config.ts`）に HTML と `llms.txt` を生成する
+- `robots.txt`（すべて許可）と `sitemap.xml` を置く
+- 独自ドメインにする場合は `about.ts` の `SITE.url` と robots.txt・sitemap.xml の URL を変える
+
 ## 8. デプロイ（Render）
 
 | サービス | 種類 | プラン |
