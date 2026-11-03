@@ -52,6 +52,11 @@ h2 { font-size: 1rem; margin: 0 0 8px; color: var(--muted); }
 }
 .score-list small { color: var(--muted); }
 .score-list .delete { flex: none; }
+.best { color: var(--correct); font-size: 0.8rem; font-weight: bold; white-space: nowrap; }
+.score-list small .best { margin-left: 8px; }
+.practice-bar .best { font-size: 0.85rem; }
+.result .best { margin: 0 0 12px; font-size: 0.9rem; }
+.result .new-best { color: #e65100; }
 
 .file-button { display: inline-block; }
 .file-button input { display: none; }
@@ -133,12 +138,25 @@ h2 { font-size: 1rem; margin: 0 0 8px; color: var(--muted); }
 .key.wrong { background: var(--wrong); }
 
 /* ---- 縦画面の案内 ---- */
-.rotate-hint { display: none; }
+/* スマホを縦向きで開いたら、アプリ全体を 90° 回して横向きで表示する（src/lib/orientation.ts と揃える） */
 @media (orientation: portrait) and (max-width: 600px) {
-  .rotate-hint {
-    display: flex; position: fixed; inset: 0; z-index: 100; align-items: center; justify-content: center;
-    background: var(--bg); font-size: 1.1rem;
+  #root {
+    position: fixed; top: 0; left: 0;
+    width: 100vh; height: 100vw;
+    width: 100dvh;
+    transform-origin: top left;
+    transform: translateX(100vw) rotate(90deg);
+    overflow: hidden;
   }
+  :root {
+    /* 回転後は端末の上下（切り欠き・ホームバー）がレイアウトの左右になる */
+    --safe-left: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-bottom, 0px);
+    --safe-bottom: env(safe-area-inset-left, 0px);
+  }
+  .home, .setup .columns { padding-left: max(16px, env(safe-area-inset-top)); padding-right: max(16px, env(safe-area-inset-bottom)); }
+  .practice-bar { padding-left: max(12px, env(safe-area-inset-top)); padding-right: max(12px, env(safe-area-inset-bottom)); }
+  .keyboard { height: 42vw; }
 }
 
 .muted { color: var(--muted); }

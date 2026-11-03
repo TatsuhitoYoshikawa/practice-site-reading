@@ -4,6 +4,7 @@ import { Loading } from '../components/Loading'
 import { ABOUT } from '../content/about'
 import { fetchScoreFromUrl } from '../lib/api'
 import { db } from '../lib/db'
+import { bestAccuracies, formatPercent } from '../lib/records'
 import { SCORE_SOURCES } from '../lib/scoreSources'
 import type { LibraryEntry, StoredScore } from '../lib/types'
 
@@ -44,6 +45,14 @@ export function Home({ onOpen }: Props) {
     }
   }
   const scores = useLiveQuery(() => db.scores.orderBy('createdAt').reverse().toArray(), [])
+  const best = useLiveQuery(async () => bestAccuracies(await db.practiceLogs.toArray()), []) ?? new Map<number, number>()
+  const libraryScoreIds = new Map(
+    (scores ?? []).filter((s) => s.libraryId !== undefined && s.id !== undefined).map((s) => [s.libraryId!, s.id!]),
+  )
+  const bestBadge = (scoreId: number | undefined) => {
+    const accuracy = scoreId === undefined ? undefined : best.get(scoreId)
+    return accuracy === undefined ? null : <span className="best" title="最高正答率">最高 {formatPercent(accuracy)}</span>
+  }
 
   useEffect(() => {
     fetch(`${LIBRARY_BASE}index.json`)
@@ -151,7 +160,7 @@ export function Home({ onOpen }: Props) {
                     <li key={entry.id}>
                       <button disabled={busy !== null} onClick={() => openLibrary(entry)}>
                         <span>{entry.title}</span>
-                        <small>{entry.composer}</small>
+                        <small>{entry.composer}{bestBadge(libraryScoreIds.get(entry.id))}</small>
                       </button>
                     </li>
                   ))}
@@ -202,6 +211,7 @@ export function Home({ onOpen }: Props) {
               <li key={score.id}>
                 <button disabled={busy !== null} onClick={() => onOpen(score)}>
                   <span>{score.title}</span>
+                  {bestBadge(score.id)}
                 </button>
                 <button className="delete" onClick={() => remove(score)} aria-label="削除">×</button>
               </li>

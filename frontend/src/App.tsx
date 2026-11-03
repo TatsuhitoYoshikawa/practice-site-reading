@@ -51,7 +51,6 @@ function App() {
           onExit={() => setScreen({ name: 'setup', score: screen.score })}
         />
       )}
-      <div className="rotate-hint">スマホを横向きにしてください</div>
     </Suspense>
   )
 }

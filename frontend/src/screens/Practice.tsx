@@ -5,6 +5,8 @@ import { Loading } from '../components/Loading'
 import { audioReady, pianoStatus, preloadPiano, startAudio, subscribePianoStatus } from '../lib/audio'
 import { db } from '../lib/db'
 import { keyboardRange } from '../lib/keyboard'
+import { layoutTopDelta } from '../lib/orientation'
+import { bestAccuracy, formatPercent } from '../lib/records'
 import { buildSteps, getBpm, noteRange, wholeNoteSeconds } from '../lib/score'
 import { PracticeSession, type SessionResult } from '../lib/session'
 import type { Hand, Mode, PracticeHand, Step, StoredScore } from '../lib/types'
@@ -27,7 +29,7 @@ function scrollToCursor(osmd: OpenSheetMusicDisplay, container: HTMLElement, sta
   if (!measure) return
 
   const svg = container.querySelector('svg')
-  const offset = svg ? svg.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop : 0
+  const offset = svg ? layoutTopDelta(svg, container) + container.scrollTop : 0
   const view = container.clientHeight
   const [systemTop, systemBottom] = verticalExtent(measure.ParentMusicSystem.PositionAndShape, osmd.Zoom)
   let top: number
@@ -109,6 +111,8 @@ export function Practice({ score, settings, onExit }: Props) {
   const [countIn, setCountIn] = useState(0)
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<SessionResult | null>(null)
+  /** 今回の前までの最高正答率（null: 初めての記録 / undefined: 読み込み中・記録しないモード） */
+  const [prevBest, setPrevBest] = useState<number | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [piano, setPiano] = useState(pianoStatus)
 
@@ -256,14 +260,20 @@ export function Practice({ score, settings, onExit }: Props) {
       onFinish: (r) => {
         setRunning(false)
         setResult(r)
+        setPrevBest(undefined)
         if (score.id !== undefined && settings.mode !== 'demo') {
-          db.practiceLogs.add({
-            scoreId: score.id,
-            hand: settings.hand,
-            mode: settings.mode,
-            tempoRate: settings.tempoRate,
-            accuracy: r.accuracy,
-            playedAt: Date.now(),
+          const scoreId = score.id
+          // 今回の記録を足す前の最高を読んでから記録し、自己ベストを更新したかを表示する
+          bestAccuracy(scoreId).then((prev) => {
+            setPrevBest(prev)
+            return db.practiceLogs.add({
+              scoreId,
+              hand: settings.hand,
+              mode: settings.mode,
+              tempoRate: settings.tempoRate,
+              accuracy: r.accuracy,
+              playedAt: Date.now(),
+            })
           })
         }
       },
@@ -338,6 +348,10 @@ export function Practice({ score, settings, onExit }: Props) {
               <>
                 <p>正答率 <strong>{Math.round(result.accuracy * 100)}%</strong></p>
                 <p>{result.correct} / {result.total} 音</p>
+                {prevBest === null && <p className="best new-best">初めての記録です</p>}
+                {prevBest != null && (result.accuracy > prevBest
+                  ? <p className="best new-best">自己ベスト更新！（これまで {formatPercent(prevBest)}）</p>
+                  : <p className="best">最高 {formatPercent(prevBest)}</p>)}
               </>
             )}
             <div className="actions">

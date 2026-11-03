@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Loading } from '../components/Loading'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
+import { bestAccuracy, formatPercent } from '../lib/records'
 import { COMFORTABLE_RANGE_SEMITONES } from '../lib/keyboard'
 import { getStaves, loadSheet, staffRanges } from '../lib/score'
 import type { Hand, Mode, PracticeHand, StaffInfo, StoredScore } from '../lib/types'
@@ -27,6 +29,7 @@ export function Setup({ score, initialSettings, onBack, onStart }: Props) {
   const [staffHands, setStaffHands] = useState<Hand[]>(score.staffHands)
   const [settings, setSettings] = useState(initialSettings)
   const [analyzed, setAnalyzed] = useState(false)
+  const best = useLiveQuery(() => (score.id === undefined ? null : bestAccuracy(score.id)), [score.id])
 
   useEffect(() => {
     loadSheet(score.musicXml).then((sheet) => {
@@ -64,6 +67,7 @@ export function Setup({ score, initialSettings, onBack, onStart }: Props) {
       <header className="practice-bar">
         <button onClick={onBack}>← 戻る</button>
         <span className="practice-title">{score.title}</span>
+        {best != null && <span className="best">最高 {formatPercent(best)}</span>}
       </header>
       <div className="columns">
         <section>
