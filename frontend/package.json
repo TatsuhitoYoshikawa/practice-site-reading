@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -12,21 +15,21 @@
   },
   "dependencies": {
     "@tonejs/midi": "^2.0.28",
-    "dexie": "^4.4.6",
+    "dexie": "^4.4.7",
     "dexie-react-hooks": "^4.4.0",
-    "opensheetmusicdisplay": "^2.2.1",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "opensheetmusicdisplay": "^2.3.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "tone": "^15.1.22"
   },
   "devDependencies": {
-    "@types/node": "^24.13.3",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.7",
-    "@vitejs/plugin-react": "^6.1.1",
-    "oxlint": "^1.81.0",
-    "typescript": "~6.0.2",
-    "vite": "^8.3.0",
-    "vitest": "^5.0.5"
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "oxlint": "^1.94.0",
+    "typescript": "~7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
   }
 }

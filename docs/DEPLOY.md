@@ -43,7 +43,7 @@ New → Static Site → **Public Git Repository** に同じ URL を入力する�
 
 | キー | 値 |
 |---|---|
-| `NODE_VERSION` | `22` |
+| `NODE_VERSION` | `26` |
 | `VITE_API_BASE_URL` | 1. の URL（例: `https://practice-site-reading-api.onrender.com`） |
 
 ## 3. 確認
